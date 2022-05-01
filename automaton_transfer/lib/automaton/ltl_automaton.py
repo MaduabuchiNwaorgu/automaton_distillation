@@ -6,6 +6,8 @@ import platform
 
 import numpy as np
 import torch
+import re
+import spot
 from flloat.parser.ltlf import LTLfParser
 from ltlf2dfa.parser.ltlf import LTLfParser as ltlf2dfaParser
 from pythomata.impl.symbolic import SymbolicDFA
@@ -14,6 +16,8 @@ from automaton_transfer.lib.automaton.automaton import Automaton
 
 # It can be slow to compile LTLf into an automaton, so we keep the results of this on disk
 AUT_CACHE_NAME = "aut_cache.json"
+
+spot.setup()
 
 
 def get_aut_json_key(ltlf: str, ap_names: List[str]):
@@ -107,16 +111,16 @@ class LTLAutomaton(Automaton):
             return cached_automaton
 
         # Parse to DFA
-        if platform.system():
+        if platform.system() == 'Linux':
+            # parser = ltlf2dfaParser()
+            # parsed = parser(ltlf)
+            # mona_dfa = parsed.to_dfa()
+            dot_dfa = spot.translate(ltlf, 'deterministic').to_str('dot')
+            dfa: SymbolicDFA = from_dot_spot(dot_dfa)
+        else:
             ltl_parser = LTLfParser()
             parsed_formula = ltl_parser(ltlf)
             dfa: SymbolicDFA = parsed_formula.to_automaton().determinize()
-
-        else:
-            parser = ltlf2dfaParser()
-            parsed = parser(ltlf)
-            mona_dfa = parsed.to_dfa()
-            dfa: SymbolicDFA = from_dot(mona_dfa).complete()
 
         print("Done with DFA conversion")
 
@@ -124,7 +128,6 @@ class LTLAutomaton(Automaton):
         adj_matrix = -np.ones((len(dfa.states), 2 ** len(ap_names)), dtype=np.int)
         iter = 0
         for state in dfa.states:
-            print(iter)
             iter += 1
             for ap_num in range(2 ** len(ap_names)):
                 ap_combination = []
@@ -179,4 +182,40 @@ def from_dot(dfa):
     for key in outgoing.keys():
         if outgoing[key] == 1:
             new_automaton.set_accepting_state(key, True)
+    new_automaton.set_initial_state(0)
+    return new_automaton.determinize()
+
+
+def from_dot_spot(dfa):
+    new_automaton = SymbolicDFA()
+    initial_state = -1
+    current_state = 0
+    states = {0}
+    lines = dfa.split('\n')
+    for line in lines:
+        if re.match('\s+I -> \d+', line):
+            initial_state = int(line.split(' ')[-1])
+        if line == '}':
+            break
+        if re.match('\s+\d+ \[label=.+\]', line):
+            if int(line[2]) in states:
+                continue
+            new_automaton.create_state()
+            current_state += 1
+            states.add(current_state)
+        elif re.match('\s+\d+ -> \d+ \[label=.+\]', line):
+            temp = line[:line.index('[')].split(' ')
+            initial = int(temp[2])
+            receive = int(temp[4])
+            while receive not in states:
+                new_automaton.create_state()
+                current_state += 1
+                states.add(current_state)
+            label = line[line.index('<') + 1:-2]
+            if 'amp;' in label:
+                label = label.replace('amp;', '')
+            if '!' in label:
+                label = label.replace('!', '~')
+            new_automaton.add_transition((initial, label, receive))
+    new_automaton.set_initial_state(initial_state)
     return new_automaton
