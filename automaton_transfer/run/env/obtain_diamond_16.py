@@ -12,8 +12,14 @@ diamond_basic_env_config = EnvConfig(
 obtain_diamond_aps = [
     AP(name="craftable", func=lambda x: True in [CraftableAP(recipe)(x) for recipe in CraftableAP.RECIPES]),
     AP(name="new_layer", func=NewLayerAP()),
-    AP(name="has_viewable_materials",
-       func=lambda x: True not in [InventoryAP(material, 1)(x) for material in materials_in_view(x)]),
+    AP(name='woodpickaxe', func=InventoryAP('woodpickaxe', 1)),
+    AP(name='stone', func=InventoryAP('stone', 1)),
+    AP(name='stonepickaxe', func=InventoryAP('stonepickaxe', 1)),
+    AP(name='iron', func=InventoryAP('iron', 1)),
+    AP(name='ironpickaxe', func=InventoryAP('ironpickaxe', 1)),
+    AP(name='diamond', func=InventoryAP('diamond', 1)),
 ]
 
-obtain_diamond_ltlf = "(F craftable) & (F new_layer) & (F has_viewable_materials)"
+obtain_diamond_ltlf = '(F craftable) & (F new_layer) & (woodpickaxe -> F stone) & ' \
+                      '(stonepickaxe -> F iron) & (ironpickaxe -> F diamond)'
+

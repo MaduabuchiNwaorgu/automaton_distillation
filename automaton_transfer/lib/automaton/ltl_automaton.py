@@ -180,15 +180,3 @@ def from_dot(dfa):
         if outgoing[key] == 1:
             new_automaton.set_accepting_state(key, True)
     return new_automaton
-
-
-if __name__ == "__main__":
-    obtain_diamond_ltlf = '(F wood) & (workbench_craftable -> F workbench) & (woodpickaxe_craftable -> F woodpickaxe) &' \
-                          ' ((woodpickaxe & stonelayers)-> F stone) & (stonepickaxe_craftable -> F stonepickaxe) &' \
-                          '(stonepickaxe & ironlayers -> F iron) & (ironpickaxe_craftable -> F ironpickaxe) & ' \
-                          '((ironpickaxe & diamond_layers) -> F diamond)'
-    parser = ltlf2dfaParser()
-    parsed = parser(obtain_diamond_ltlf)
-    dfa = parsed.to_dfa()
-    automaton = from_dot(dfa)
-    pass
