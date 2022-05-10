@@ -12,13 +12,33 @@ class CraftableAP:
     def __call__(self, info):
         inv = info['inventory']
         if self.item_name == 'workbench':
-            return inv['wood'] > 1
+            return inv['wood'] > 1 and inv['workbench'] != 1
         if self.item_name == 'woodpickaxe':
-            return inv['wood'] > 2
+            return inv['wood'] > 2 and inv['woodpickaxe'] != 1
         if self.item_name == 'stone_pickaxe':
-            return inv['wood'] > 1 and inv['stone'] > 1
+            return inv['wood'] > 1 and inv['stone'] > 1 and inv['stonepickaxe'] != 1
         if self.item_name == 'iron_pickaxe':
-            return inv['wood'] > 1 and inv['iron'] > 1
+            return inv['wood'] > 1 and inv['iron'] > 1 and inv['workbench'] != 1
+
+
+class AnyCraftableAP:
+    """Checks if there is any craftable item given the current inventory"""
+
+    def __init__(self):
+        pass
+
+    def __call__(self, info):
+        inv = info['inventory']
+        if inv['wood'] > 1 and inv['workbench'] != 1:
+            return True
+        if inv['wood'] > 2 and inv['woodpickaxe'] != 1:
+            return True
+        if inv['wood'] > 1 and inv['stone'] > 1 and inv['stonepickaxe'] != 1:
+            return True
+        if inv['wood'] > 1 and inv['iron'] > 1 and inv['workbench'] != 1:
+            return True
+
+        return False
 
 
 class InventoryAP:
