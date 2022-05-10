@@ -115,7 +115,7 @@ class LTLAutomaton(Automaton):
             # parser = ltlf2dfaParser()
             # parsed = parser(ltlf)
             # mona_dfa = parsed.to_dfa()
-            dot_dfa = spot.translate(ltlf, 'deterministic').to_str('dot')
+            dot_dfa = spot.translate(ltlf, 'deterministic', 'complete', 'Buchi').to_str('dot')
             dfa: SymbolicDFA = from_dot_spot(dot_dfa)
         else:
             ltl_parser = LTLfParser()
@@ -192,7 +192,10 @@ def from_dot_spot(dfa):
     current_state = 0
     states = {0}
     lines = dfa.split('\n')
+    i = 0
     for line in lines:
+        print(i)
+        i += 1
         if re.match('\s+I -> \d+', line):
             initial_state = int(line.split(' ')[-1])
         if line == '}':

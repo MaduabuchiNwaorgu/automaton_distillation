@@ -92,5 +92,22 @@ class MaterialInView:
         return MATERIAL_TO_NUM[self.material] in info['obs']
 
 
+class HasViewableMaterials:
+    """Checks if the agent has at least one of every (obtainable) material in its sight"""
+
+    def __init__(self):
+        pass
+
+    def __call__(self, info):
+        for material in materials_in_view(info):
+            if material not in NUM_TO_MATERIAL.keys():
+                continue
+            if material in info['obs']:
+                continue
+            else:
+                return False
+        return True
+
+
 def materials_in_view(info):
     return set(info['obs'].flatten().tolist())
