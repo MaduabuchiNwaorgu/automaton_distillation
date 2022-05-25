@@ -150,7 +150,7 @@ class ExponentialAnnealTargetAutomaton(AnnealTargetAutomaton):
 
     def __init__(self, inner_automaton: Automaton, source_q_total, source_q_count, min_source_q_count: int,
                  device: torch.device,
-                 exponent_base: int):
+                 exponent_base: float):
         super().__init__(inner_automaton=inner_automaton,
                          source_q_total=source_q_total,
                          source_q_count=source_q_count,

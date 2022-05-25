@@ -14,7 +14,7 @@ config = student_config_v1(
     device=device,
     anneal_target_aut_class=ExponentialAnnealTargetAutomaton,
     anneal_target_aut_kwargs={
-        "exponent_base": 0.999
+        "exponent_base": 0.9999
     },
     aps=obtain_diamond_aps,
     ltlf=obtain_diamond_ltlf,

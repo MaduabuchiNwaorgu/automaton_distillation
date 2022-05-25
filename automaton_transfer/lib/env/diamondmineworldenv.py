@@ -1,18 +1,11 @@
 import abc
-import functools
 import random
-import time
 from collections import Counter
-from random import Random
-from typing import Tuple, TypeVar, Union, List, Dict, Collection, Type
-import os
+from typing import Tuple, List, Dict, Type
 import numpy as np
 from gym import spaces
 
-from automaton_transfer.lib.env.gridenv import GridEnv
 from automaton_transfer.lib.env.saveloadenv import SaveLoadEnv
-from automaton_transfer.lib.env.util import element_add
-from automaton_transfer.lib.env.mineworldenv import MineWorldTileType
 
 actions_name = ['Noop', 'Forward', 'Backward', 'Right', 'Left', 'Craft', 'Mine Forward',
                 'Mine Backward', 'Mine Right', 'Mine Left', 'Mine Down', 'Mine Up']
@@ -180,7 +173,8 @@ class ObtainDiamondGridworld(SaveLoadEnv):
         self.prev_inv = self.inv.copy()
 
     def load_state(self, state):
-        pass
+        self.pos, self.layers, self.inv, self.current_time = state
+        self.prev_inv = self.inv.copy()
 
     def step(self, action):
         """
@@ -289,7 +283,7 @@ class ObtainDiamondGridworld(SaveLoadEnv):
             print(row)
 
     def save_state(self):
-        pass
+        return self.pos, self.layers, self.inv, self.current_time
 
     def get(self, coords):
         return self.layers[coords[2]].get(coords[:-1])
@@ -299,38 +293,6 @@ class ObtainDiamondGridworld(SaveLoadEnv):
         if inv_update is not None:
             self.inv += inv_update
         return broken
-
-    # Potentially useful for checking line of sight to different blocks, for now though
-    # just doing 3x3x3 area of observation
-    # @staticmethod
-    # def bresenham_line(current: Tuple[int, int], block_pos: Tuple[int, int]):
-    #     if current == block_pos:
-    #         return []
-    #     if current[0] == block_pos[0]:
-    #         inc = 1 if block_pos[1] > current[1] else -1
-    #         return [(current[0], i) for i in range(current[1] + 1, block_pos[1], inc)]
-    #     if current[1] == block_pos[1]:
-    #         inc = 1 if block_pos[0] > current[0] else -1
-    #         return [(i, current[1]) for i in range(current[0] + 1, block_pos[0], inc)]
-    #     coordinates = []
-    #     if abs((block_pos[1] - current[1]) / (block_pos[0] - current[0])) < 1:
-    #         x_start = current[0] + 1 if block_pos[0] > current[0] else current[0] - 1
-    #         x_end = block_pos[0]
-    #         inc = 1 if block_pos[0] > current[0] else -1
-    #
-    #         for i in range(x_start, x_end, inc):
-    #             coordinates.append((i, int((block_pos[1] - current[1]) /
-    #                                        (block_pos[0] - current[0]) * (i - current[0]) + current[1])))
-    #         return coordinates
-    #     else:
-    #         y_start = current[1] + 1 if block_pos[1] > current[1] else current[1] - 1
-    #         y_end = block_pos[1]
-    #         inc = 1 if block_pos[1] > current[1] else -1
-    #
-    #         for i in range(y_start, y_end, inc):
-    #             coordinates.append((int((block_pos[0] - current[0]) /
-    #                                     (block_pos[1] - current[1]) * (i - current[1]) + current[1]), i))
-    #         return coordinates
 
     def observe_layer(self, layer: Layer, coords: Tuple[int, int]):
         obs = [[-1 for _ in range(self.obs_shape[0])] for _ in range(self.obs_shape[1])]
@@ -349,13 +311,6 @@ class ObtainDiamondGridworld(SaveLoadEnv):
                     obs[ind % self.obs_shape[0]][ind // self.obs_shape[1]] = -2
                     ind += 1
                     continue
-                # blocks = ObtainDiamondGridworld.bresenham_line(coords, (i, j))
-                # for block in blocks:
-                #     if not isinstance(layer.get(block), Air):
-                #         obs[ind % self.obs_shape[0]][ind // self.obs_shape[1]] = -1
-                #         ind += 1
-                #         is_air = False
-                #         break
                 if is_air:
                     try:
                         obs[ind % self.obs_shape[0]][ind // self.obs_shape[1]] = layer.get((i, j)).get_representation()
@@ -374,18 +329,6 @@ class ObtainDiamondGridworld(SaveLoadEnv):
                 stack.append(self.observe_layer(self.layers[i], self.pos[:-1]))
 
         stack.append([[self.pos[2] for _ in range(self.obs_shape[0])] for _ in range(self.obs_shape[1])])
-        # for _ in range(self.pos[2] - 1):
-        #     stack.append([[-2 for _ in range(self.obs_shape[0])] for _ in range(self.obs_shape[1])])
-        #
-        # for i in range(self.pos[2] - 1, self.pos[2] + 2):
-        #     if i < 0:
-        #         continue
-        #     if i >= self.shape[2]:
-        #         continue
-        #     stack.append(self.observe_layer(self.layers[i], self.pos[:-1]))
-        #
-        # for _ in range(self.pos[2] + 2, self.shape[2]):
-        #     stack.append([[-2 for _ in range(self.obs_shape[0])] for _ in range(self.obs_shape[1])])
 
         stack.append([[self.inv.get('wood', 0) for _ in range(self.obs_shape[0])] for _ in range(self.obs_shape[1])])
         stack.append(
@@ -444,8 +387,10 @@ if __name__ == '__main__':
     obs = env.reset()
     reward = 0
     for _ in range(10000):
-        env.render()
-        print(reward)
-        _, reward, _, _ = env.step(
-            max(min(int(input("0: Noop 1: Forward 2: Backward 3: Right 4: Left 5: Craft 6: Mine Forward 7: Mine "
-                              "Backward 8: Mine Right 9: Mine Left 10: Mine Down 11: Mine Up: ")), 11), 0))
+        # env.render()
+        # print(reward)
+        # _, reward, _, _ = env.step(
+        #     max(min(int(input("0: Noop 1: Forward 2: Backward 3: Right 4: Left 5: Craft 6: Mine Forward 7: Mine "
+        #                       "Backward 8: Mine Right 9: Mine Left 10: Mine Down 11: Mine Up: ")), 11), 0))
+        env.step(np.random.choice(range(12)))
+        print(_)

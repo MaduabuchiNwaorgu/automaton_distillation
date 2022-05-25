@@ -10,3 +10,9 @@ gym.register("ObtainDiamondGridworld-v0",
              nondeterministic=False,
              max_episode_steps=10000
              )
+
+gym.register("SpaceInvadersGridworld-v0",
+             entry_point="automaton_transfer.lib.env.spaceinvadersenv:SpaceInvaders",
+             nondeterministic=False,
+             max_episode_steps=10000
+             )

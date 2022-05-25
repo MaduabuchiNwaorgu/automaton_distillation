@@ -7,7 +7,7 @@ import platform
 import numpy as np
 import torch
 import re
-import spot
+# import spot
 from flloat.parser.ltlf import LTLfParser
 from ltlf2dfa.parser.ltlf import LTLfParser as ltlf2dfaParser
 from pythomata.impl.symbolic import SymbolicDFA
@@ -17,7 +17,7 @@ from automaton_transfer.lib.automaton.automaton import Automaton
 # It can be slow to compile LTLf into an automaton, so we keep the results of this on disk
 AUT_CACHE_NAME = "aut_cache.json"
 
-spot.setup()
+# spot.setup()
 
 
 def get_aut_json_key(ltlf: str, ap_names: List[str]):
@@ -115,8 +115,9 @@ class LTLAutomaton(Automaton):
             # parser = ltlf2dfaParser()
             # parsed = parser(ltlf)
             # mona_dfa = parsed.to_dfa()
-            dot_dfa = spot.translate(ltlf, 'deterministic', 'complete', 'Buchi').to_str('dot')
-            dfa: SymbolicDFA = from_dot_spot(dot_dfa)
+            # dot_dfa = spot.translate(ltlf, 'deterministic').to_str('dot')
+            # dfa: SymbolicDFA = from_dot_spot(dot_dfa)
+            pass
         else:
             ltl_parser = LTLfParser()
             parsed_formula = ltl_parser(ltlf)
@@ -192,10 +193,7 @@ def from_dot_spot(dfa):
     current_state = 0
     states = {0}
     lines = dfa.split('\n')
-    i = 0
     for line in lines:
-        print(i)
-        i += 1
         if re.match('\s+I -> \d+', line):
             initial_state = int(line.split(' ')[-1])
         if line == '}':
