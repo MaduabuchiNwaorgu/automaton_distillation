@@ -386,11 +386,14 @@ if __name__ == '__main__':
     env = ObtainDiamondGridworld({'shape': (10, 10, 20)})
     obs = env.reset()
     reward = 0
-    for _ in range(10000):
-        # env.render()
-        # print(reward)
-        # _, reward, _, _ = env.step(
-        #     max(min(int(input("0: Noop 1: Forward 2: Backward 3: Right 4: Left 5: Craft 6: Mine Forward 7: Mine "
-        #                       "Backward 8: Mine Right 9: Mine Left 10: Mine Down 11: Mine Up: ")), 11), 0))
-        env.step(np.random.choice(range(12)))
-        print(_)
+    for i in range(50):
+        print(i)
+        for _ in range(10000):
+            # env.render()
+            # print(reward)
+            # _, reward, _, _ = env.step(
+            #     max(min(int(input("0: Noop 1: Forward 2: Backward 3: Right 4: Left 5: Craft 6: Mine Forward 7: Mine "
+            #                       "Backward 8: Mine Right 9: Mine Left 10: Mine Down 11: Mine Up: ")), 11), 0))
+            _, _, done, _ = env.step(np.random.choice(range(12)))
+            if done:
+                break
