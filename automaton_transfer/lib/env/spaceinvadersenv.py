@@ -359,6 +359,7 @@ class SpaceInvaders(SaveLoadEnv):
 
 
 if __name__ == '__main__':
+    # Just used for testing/debugging code
     env = SpaceInvaders({'enemies': (6, 5), 'bunkers': 3, 'shape': (20, 20), 'alien_shape': (1, 1),
                          'player_shape': (2, 2), 'bunker_shape': (4, 4), 'max_time': 500})
     for i in range(50):

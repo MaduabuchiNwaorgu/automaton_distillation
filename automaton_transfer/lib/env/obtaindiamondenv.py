@@ -148,7 +148,7 @@ def diamond_layer(shape):
     return {'shape': shape, 'base': Stone, 'args': [{'type': Diamond, 'num': 1, 'min_per': 1, 'max_per': 1}]}
 
 
-class ObtainDiamondGridworld(SaveLoadEnv):
+class ObtainDiamond(SaveLoadEnv):
     # @staticmethod
     # def from_dict(dict):
     #     dict = dict['config']
@@ -383,7 +383,8 @@ class ObtainDiamondGridworld(SaveLoadEnv):
 
 
 if __name__ == '__main__':
-    env = ObtainDiamondGridworld({'shape': (10, 10, 20)})
+    # Just used for testing/debugging code
+    env = ObtainDiamond({'shape': (10, 10, 20)})
     obs = env.reset()
     reward = 0
     for i in range(50):
