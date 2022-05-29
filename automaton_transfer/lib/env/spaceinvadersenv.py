@@ -102,10 +102,14 @@ class PlayerBullet:
 class SpaceInvaders(SaveLoadEnv):
 
     def load_state(self, state):
-        pass
+        self.num_enemies, self.num_bunkers, self.shape, self.alien_shape, self.player_shape, self.bunker_shape, \
+        self.max_time, self.player, self.obs, self.aliens, self.enemy_projectiles, self.player_projectiles, \
+        self.bunkers, self.num_destroyed, self.dir_x, self.dir_y, self.timestep, self.time_before_fire = state
 
     def save_state(self):
-        pass
+        return self.num_enemies, self.num_bunkers, self.shape, self.alien_shape, self.player_shape, self.bunker_shape, \
+               self.max_time, self.player, self.obs, self.aliens, self.enemy_projectiles, self.player_projectiles, \
+               self.bunkers, self.num_destroyed, self.dir_x, self.dir_y, self.timestep, self.time_before_fire
 
     def handle_enemy_collisions(self):
         collided_proj = []

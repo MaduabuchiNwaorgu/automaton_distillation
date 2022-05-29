@@ -280,10 +280,12 @@ class Crystal:
 class DragonFight(SaveLoadEnv):
 
     def save_state(self):
-        pass
+        return self.time, self.dragon, self.crystals, self.player, self.dragon_breath, self.shape, self.crystal_count, \
+               self.dragon_health, self.player_health, self.max_time, self.obs, self.inner_ring, self.outer_ring
 
     def load_state(self, state):
-        pass
+        self.time, self.dragon, self.crystals, self.player, self.dragon_breath, self.shape, self.crystal_count, \
+        self.dragon_health, self.player_health, self.max_time, self.obs, self.inner_ring, self.outer_ring = state
 
     def step(self, action):
         self.time += 1
