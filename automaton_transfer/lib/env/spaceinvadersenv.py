@@ -8,6 +8,7 @@ from automaton_transfer.lib.env.saveloadenv import SaveLoadEnv
 
 
 class Alien:
+    # An individual alien
     def __init__(self, pos, shape, size=(1, 2)):
         self.shape = shape
         self.pos = pos
@@ -15,6 +16,7 @@ class Alien:
         self.gun_pos = (pos[0], pos[1] + self.size[1])
 
     def step(self, dir_x, dir_y):
+        # Just moves the alien and makes sure none are hitting a wall
         if dir_x < 0:
             self.pos = (max(self.pos[0] + dir_x, 0), self.pos[1] + dir_y)
         else:
@@ -26,6 +28,7 @@ class Alien:
             return False
 
     def fire(self):
+        # If the alien is chosen this is the bullet it creates, only one fires at a time
         return AlienBullet(self.gun_pos)
 
     def distance(self, pos):
@@ -103,18 +106,20 @@ class SpaceInvaders(SaveLoadEnv):
 
     def load_state(self, state):
         self.num_enemies, self.num_bunkers, self.shape, self.alien_shape, self.player_shape, self.bunker_shape, \
-        self.max_time, self.player, self.obs, self.aliens, self.enemy_projectiles, self.player_projectiles, \
+        self.max_time, self.player, self.obs, self.aliens, self.alien_projectiles, self.player_projectiles, \
         self.bunkers, self.num_destroyed, self.dir_x, self.dir_y, self.timestep, self.time_before_fire = state
 
     def save_state(self):
         return self.num_enemies, self.num_bunkers, self.shape, self.alien_shape, self.player_shape, self.bunker_shape, \
-               self.max_time, self.player, self.obs, self.aliens, self.enemy_projectiles, self.player_projectiles, \
+               self.max_time, self.player, self.obs, self.aliens, self.alien_projectiles, self.player_projectiles, \
                self.bunkers, self.num_destroyed, self.dir_x, self.dir_y, self.timestep, self.time_before_fire
 
     def handle_enemy_collisions(self):
         collided_proj = []
         collided_enemy = []
         out_of_bounds = []
+
+        # Goes through every projectile, checking if it hit an alien or is out of bounds
         for proj in self.player_projectiles:
             if proj.pos[1] < 0:
                 out_of_bounds.append(proj)
@@ -123,6 +128,8 @@ class SpaceInvaders(SaveLoadEnv):
                     collided_proj.append(proj)
                     collided_enemy.append(enemy)
                     break
+
+        # Remove the things that have been hit or are out of bounds
         for proj in collided_proj:
             if proj in self.player_projectiles:
                 self.player_projectiles.remove(proj)
@@ -135,13 +142,16 @@ class SpaceInvaders(SaveLoadEnv):
         return len(collided_enemy)
 
     def handle_bunker_collisions(self):
+        # Used for checking in case the bullet is more than just one tile, though currently they are only one tile large
         enemy_bullet_heads = {}
         player_bullet_heads = {}
-        for proj in self.enemy_projectiles:
+
+        for proj in self.alien_projectiles:
             enemy_bullet_heads[proj.pos] = proj
         for proj in self.player_projectiles:
             player_bullet_heads[proj.pos] = proj
 
+        # Checks each bunker and sees if any have been hit, removing the corresponding bullet
         destroyed_bunker = []
         for pos in self.bunkers:
             for enemy in self.aliens:
@@ -151,46 +161,52 @@ class SpaceInvaders(SaveLoadEnv):
                 destroyed_bunker.append(pos)
                 if (pos[0], pos[1] + 1) in self.bunkers:
                     destroyed_bunker.append((pos[0], pos[1] + 1))
-                if enemy_bullet_heads[pos] in self.enemy_projectiles:
-                    self.enemy_projectiles.remove(enemy_bullet_heads[pos])
+                if enemy_bullet_heads[pos] in self.alien_projectiles:
+                    self.alien_projectiles.remove(enemy_bullet_heads[pos])
             elif pos in player_bullet_heads:
                 destroyed_bunker.append(pos)
                 if (pos[0], pos[1] + 1) in self.bunkers:
                     destroyed_bunker.append((pos[0], pos[1] + 1))
                 if player_bullet_heads[pos] in self.player_projectiles:
                     self.player_projectiles.remove(player_bullet_heads[pos])
+
         for val in destroyed_bunker:
             if val in self.bunkers:
                 self.bunkers.remove(val)
 
     def handle_player_collisions(self):
+        # Similar to others, check if the player is hit by a bullet and removes the bullet/damages player if it is
         hit_proj = None
         out_of_bounds = []
-        for proj in self.enemy_projectiles:
+
+        for proj in self.alien_projectiles:
             if proj.pos[1] > self.shape[1] - 1:
                 out_of_bounds.append(proj)
             if self.player.contains(proj.pos):
                 hit_proj = proj
 
         for proj in out_of_bounds:
-            if proj in self.enemy_projectiles:
-                self.enemy_projectiles.remove(proj)
+            if proj in self.alien_projectiles:
+                self.alien_projectiles.remove(proj)
 
         if hit_proj is not None and not self.player.invulnerable:
-            if hit_proj in self.enemy_projectiles:
-                self.enemy_projectiles.remove(hit_proj)
+            if hit_proj in self.alien_projectiles:
+                self.alien_projectiles.remove(hit_proj)
             self.player.hit()
             return True
 
         return False
 
     def step_aliens(self):
+        # Moves all the aliens, if they collided with a wall then move them down one and
+        # reverse their left/right direction.
         against_wall = False
         for enemy in self.aliens:
             if not against_wall:
                 against_wall = enemy.step(self.dir_x, self.dir_y)
             else:
                 enemy.step(self.dir_x, self.dir_y)
+
         if against_wall:
             self.dir_x *= -1
             self.dir_y = 1
@@ -198,27 +214,31 @@ class SpaceInvaders(SaveLoadEnv):
             self.dir_y = 0
 
     def aliens_fire(self):
+        # Causes the alien closer to the player to fire more often, and also handles the firing logic
         front_aliens = {}
         for enemy in self.aliens:
             if enemy.gun_pos[0] not in front_aliens.keys():
                 front_aliens[enemy.gun_pos[0]] = enemy
             elif front_aliens[enemy.gun_pos[0]].gun_pos[1] < enemy.gun_pos[1]:
                 front_aliens[enemy.gun_pos[0]] = enemy
+
         front_aliens = list(front_aliens.values())
         distances = np.array([front_alien.distance(self.player.pos) for front_alien in front_aliens])
         distances = 3 / (distances + np.ones(shape=distances.shape))
         distances = np.nan_to_num(distances)
         probs = np.abs(distances) / np.sum(distances)
         firing_alien = np.random.choice(front_aliens, p=probs)
-        self.enemy_projectiles.append(firing_alien.fire())
+        self.alien_projectiles.append(firing_alien.fire())
 
     def step_proj(self):
-        for proj in self.enemy_projectiles:
+        # Moves all the projectiles
+        for proj in self.alien_projectiles:
             proj.step()
         for proj in self.player_projectiles:
             proj.step()
 
     def frequency(self):
+        # Speeds up the aliens as more are destroyed.
         max_enemies = self.num_enemies[0] * self.num_enemies[1]
         if len(self.aliens) > max_enemies // 2:
             return 5
@@ -234,21 +254,28 @@ class SpaceInvaders(SaveLoadEnv):
     def step(self, action):
         self.timestep += 1
         self.step_proj()
+
+        # Only has the aliens move/fire every so often
         if self.timestep % self.frequency() == 0:
             self.step_aliens()
         if self.timestep % 2 == 0:
             self.aliens_fire()
+
+        # Player movement/firing, and only allowing the player to fire so often
         player_bullet = self.player.step(action)
         if player_bullet is not None and self.time_before_fire == 0:
             self.player_projectiles.append(player_bullet)
             self.time_before_fire = 2
         elif self.time_before_fire > 0:
             self.time_before_fire -= 1
+
+        # Deals with collisions, and tracks some things for reward handling
         num_destroyed = self.handle_enemy_collisions()
         self.num_destroyed += num_destroyed
         player_hit = self.handle_player_collisions()
         self.handle_bunker_collisions()
         self.obs.append(self.get_state())
+
         reward = 0
         reward += 20 / (self.num_enemies[0] * self.num_enemies[1]) * num_destroyed
         done = False
@@ -264,10 +291,13 @@ class SpaceInvaders(SaveLoadEnv):
                 done = True
                 reward -= 20
                 break
-        return np.array(self.obs,
-                        dtype=np.uint8), reward, self.player.lives == 0 or self.timestep == self.max_time or done, {}
+
+        return np.array(self.obs, dtype=np.uint8), reward, self.player.lives == 0 or self.timestep == self.max_time or \
+               done, {'aliens': self.aliens, 'alien_proj': self.alien_projectiles, 'bunkers': self.bunkers,
+                      'player': self.player}
 
     def reset_aliens(self):
+        # Resets all the aliens and makes them evenly spaced
         self.aliens = []
         self.dir_x = -1
         self.dir_y = 0
@@ -284,6 +314,7 @@ class SpaceInvaders(SaveLoadEnv):
             i += every_i
 
     def reset_bunkers(self):
+        # Resets the bunkers in an even pattern left/right
         self.bunkers = []
         spacing = (self.shape[0] - self.bunker_shape[1] * self.num_bunkers) // (self.num_bunkers + 1)
         i = 0
@@ -299,7 +330,7 @@ class SpaceInvaders(SaveLoadEnv):
         self.reset_bunkers()
         self.player = Player(self.shape, self.player_shape)
         self.obs.append(self.get_state())
-        self.enemy_projectiles = []
+        self.alien_projectiles = []
         self.player_projectiles = []
         self.num_destroyed = 0
         self.dir_x = -1
@@ -317,7 +348,7 @@ class SpaceInvaders(SaveLoadEnv):
         for enemy in self.aliens:
             for pos in enemy.positions():
                 obs[pos[1]][pos[0]] = 3
-        for proj in self.enemy_projectiles:
+        for proj in self.alien_projectiles:
             obs[proj.pos[1]][proj.pos[0]] = 4
         for proj in self.player_projectiles:
             obs[proj.pos[1]][proj.pos[0]] = 5
@@ -335,9 +366,6 @@ class SpaceInvaders(SaveLoadEnv):
         print()
 
     def __init__(self, config: Dict):
-        """
-        :param config:
-        """
         self.num_enemies = config['enemies']
         self.num_bunkers = config['bunkers']
         self.shape = config['shape']
@@ -352,7 +380,7 @@ class SpaceInvaders(SaveLoadEnv):
         for _ in range(3):
             self.obs.append([[0 for _ in range(self.shape[0])] for _ in range(self.shape[1])])
         self.aliens = []
-        self.enemy_projectiles = []
+        self.alien_projectiles = []
         self.player_projectiles = []
         self.bunkers = []
         self.num_destroyed = 0

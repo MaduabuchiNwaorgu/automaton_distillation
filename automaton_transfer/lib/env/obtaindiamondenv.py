@@ -12,6 +12,7 @@ actions_name = ['Noop', 'Forward', 'Backward', 'Right', 'Left', 'Craft', 'Mine F
 
 
 class Block(abc.ABC):
+    """Basic abstract block class"""
     def __init__(self, consumable: bool, action_name: str, grid_letter: str,
                  inventory_requirements: Counter, representation: int):
         self.consumable = consumable
@@ -34,6 +35,7 @@ class Block(abc.ABC):
 
 
 class Air(Block):
+    """Simply an empty block, used when breaking a block and for the wood layer since there is empty blocks"""
     def __init__(self):
         super().__init__(consumable=False, action_name=None, grid_letter='a',
                          inventory_requirements=None, representation=0)
@@ -97,6 +99,7 @@ class Diamond(Block):
 
 
 class Layer:
+    """Collection of blocks to form a layer, handles some logic cases like how many of a material to generate"""
     def __init__(self, shape: Tuple[int, int], base_block: Type[Block], args: List[Dict]):
         # Args should consist of a list of dictionaries, with element of 'type', 'num', 'min_per', 'max_per'
         self.tiles = [[base_block() for _ in range(shape[0])] for _ in range(shape[1])]
@@ -149,10 +152,6 @@ def diamond_layer(shape):
 
 
 class ObtainDiamond(SaveLoadEnv):
-    # @staticmethod
-    # def from_dict(dict):
-    #     dict = dict['config']
-    #     return ObtainDiamondGridworld(shape=tuple(dict['shape']))
 
     def __init__(self, config: Dict):
         self.shape = config['shape']
@@ -161,9 +160,8 @@ class ObtainDiamond(SaveLoadEnv):
 
         self.action_space = spaces.Discrete(11)
 
-        # Observation should only be what is visible in a 3x5x5 area around the agent
+        # Observation should only be what is visible in a 3x obs_shape area around the agent
         self.observation_space = spaces.Box(-2, 5, shape=(12,) + self.obs_shape)
-        # self.observation_space = spaces.Box(-2, 5, shape=(8 + self.shape[-1],) + self.obs_shape)
 
         self.layers = []
         self.max_time = self.shape[2] * self.shape[0] * self.shape[1] // 4
@@ -286,15 +284,19 @@ class ObtainDiamond(SaveLoadEnv):
         return self.pos, self.layers, self.inv, self.current_time
 
     def get(self, coords):
+        # Gets the block at the coordinates
         return self.layers[coords[2]].get(coords[:-1])
 
     def break_block_at(self, coords):
+        # Tries to break block at a coordinate, which the block will then check if the player can break it or not, and
+        # if the player does break it, updates the inventory accordingly
         inv_update, broken = self.layers[coords[2]].break_block_at(coords[:-1], self.inv)
         if inv_update is not None:
             self.inv += inv_update
         return broken
 
     def observe_layer(self, layer: Layer, coords: Tuple[int, int]):
+        # Returns the observation for a layer, called 3 times for current, above and below layers
         obs = [[-1 for _ in range(self.obs_shape[0])] for _ in range(self.obs_shape[1])]
         x, y = coords
         ind = 0
@@ -321,6 +323,7 @@ class ObtainDiamond(SaveLoadEnv):
         return obs
 
     def observe(self):
+        # Returns the full observation, consisting of the environment itself, as well as the player inventory
         stack = []
         for i in range(self.pos[2] - 1, self.pos[2] + 2):
             if i < 0 or i >= self.shape[2]:
@@ -346,6 +349,7 @@ class ObtainDiamond(SaveLoadEnv):
         return stack
 
     def craft(self):
+        # Handles when the player tries to craft
         if self.inv['wood'] >= 1 and self.inv['iron'] >= 1 and self.inv['ironpickaxe'] == 0 and \
                 self.inv['workbench'] == 1:
             self.inv += Counter(wood=-1, iron=-1, ironpickaxe=1)
@@ -358,6 +362,7 @@ class ObtainDiamond(SaveLoadEnv):
             self.inv += Counter(wood=-1, workbench=1)
 
     def reward_tracker(self):
+        # Handles rewards, only gives reward on the first instance of an item
         reward = 0
         temp = self.inv.copy()
         temp.subtract(self.prev_inv)

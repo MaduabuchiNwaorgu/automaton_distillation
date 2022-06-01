@@ -8,6 +8,7 @@ from automaton_transfer.lib.env.saveloadenv import SaveLoadEnv
 
 
 def path(pos1, pos2):
+    # Returns a list that defines a path between two points, used for breath/rushing/perching
     mvmt = (pos2[0] - pos1[0], pos2[1] - pos1[1])
     N = max(abs(mvmt[0]), abs(mvmt[1]))
     if N == 0:
@@ -20,10 +21,12 @@ def path(pos1, pos2):
 
 
 def distance(pos1, pos2):
+    # Maze distance between two points
     return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
 
 def generate_ring(radius, center):
+    # Creates a "ring", more of a square pattern, used for where the crystals are placed and the dragon roaming.
     start = (center[0] - radius, center[1] - radius)
     ring = [(start[0] + i, start[1]) for i in range(radius * 2)]
     ring = ring + [(start[0] + (radius * 2 - 1), start[1] + i) for i in range(1, radius * 2)]
@@ -36,7 +39,7 @@ class Dragon:
     def __init__(self, shape, health, ring, size=(2, 2)):
         self.size = size
         self.shape = shape
-        self.health = 2
+        self.health = health
         self.ring = ring
         self.ind = np.random.choice(len(ring))
         self.pos = ring[self.ind]
@@ -50,13 +53,16 @@ class Dragon:
 
     def roam(self):
         if self.pos != self.ring[self.ind]:
+            # Would occur if the dragon was just done perching or rushing
             self.path_ind = max(self.path_ind - 1, 0)
             self.pos = self.path[self.path_ind]
         else:
+            # Default roaming
             self.ind = (self.ind + 1) % len(self.ring)
             self.pos = self.ring[self.ind]
 
     def rush(self):
+        # Essentially just finds the path to the player and follows it until reaching the destination
         self.path_ind = min(self.path_ind + 1, len(self.path) - 1)
         if self.path_ind == len(self.path) - 1:
             self.cooldown = 10
@@ -68,6 +74,7 @@ class Dragon:
         return Breath(path(self.pos, player_pos))
 
     def perch(self):
+        # Goes to the center and "perches" there for a certain length of time, giving the player a chance to attack
         if not self.perched:
             self.path_ind = min(self.path_ind + 1, len(self.path) - 1)
             self.pos = self.path[self.path_ind]
@@ -82,10 +89,11 @@ class Dragon:
                 self.cooldown = 10
 
     def hit(self, crystals):
-        if len(crystals.crystals) == 0:
+        if len(crystals.num_crystals) == 0:
             self.health -= 1
 
     def step(self, player):
+        # Called every timestep, determines what action the dragon is doing and has the dragon follow that action
         self.cooldown = max(self.cooldown - 1, 0)
         if self.rushing:
             self.rush()
@@ -106,6 +114,7 @@ class Dragon:
                     # Otherwise, it'll do the breath attack
                     return self.breath(player.pos)
             elif np.random.uniform(0, 1, 1) > 0.9:
+                # Otherwise perch
                 self.path_ind = 0
                 self.perching = True
                 self.path = path(self.pos, (self.shape[0] // 2 - self.size[0] // 2,
@@ -118,10 +127,6 @@ class Dragon:
     def positions(self):
         return [(self.pos[0] + i, self.pos[1] + j) for i in range(self.size[0]) for j in range(self.size[1])]
 
-    def path(self, pos):
-        path = None
-
-
 
 class Breath:
     def __init__(self, _path):
@@ -132,6 +137,7 @@ class Breath:
         self.lifespan = 8
 
     def step(self):
+        # Has the breath follow the path until it reaches its destination, then remains there until it expires.
         if not self.inplace:
             self.path_ind = min(self.path_ind + 1, len(self.path) - 1)
             self.pos = self.path[self.path_ind]
@@ -152,24 +158,29 @@ class Player:
         self.iframe = 0
 
     def attack(self, crystals, dragon):
+        # Ranged attack has a certain cooldown, just decrementing it
         self.ranged_cooldown = max(self.ranged_cooldown - 1, 0)
-        if len(crystals.crystals) > 0:
+
+        # Determines what the closest target is
+        if len(crystals.num_crystals) > 0:
             closest_crystal, dist = crystals.closest_crystal(self.pos)
         dragon_dist = distance(self.pos, dragon.pos)
-        if len(crystals.crystals) == 0 or dragon_dist < dist:
+        if len(crystals.num_crystals) == 0 or dragon_dist < dist:
             target = dragon
             target_dist = dragon_dist
         else:
             target = closest_crystal
             target_dist = dist
         if self.melee:
-            if target_dist == 1:
+            if target_dist < 1:
+                # Just to note, crystals will have a distance more than 1 unless it's been built next to
                 if isinstance(target, Dragon):
                     target.hit(crystals)
                 else:
                     crystals.remove(target)
         else:
             if self.ranged_cooldown == 0:
+                # Hits with a certain chance
                 if target_dist == 0:
                     probability = 1
                 else:
@@ -186,11 +197,7 @@ class Player:
 
     def move(self, action, crystals, dragon):
         """
-
         :param action: Actions: 0 Up, 1 Right, 2 Down, 3 Left, 4 Noop
-        :param crystals:
-        :param dragon:
-        :return:
         """
         if action == 0:
             new_pos = (max(self.pos[0] - 1, 0), self.pos[1])
@@ -211,7 +218,8 @@ class Player:
             self.pos = new_pos
 
     def build(self, crystals):
-        if len(crystals.crystals) > 0:
+        # If the player is next to a crystal, then build, decreasing the distance when next to it for the future.
+        if len(crystals.num_crystals) > 0:
             closest_crystal, _ = crystals.closest_crystal(self.pos)
             if distance(self.pos, closest_crystal.pos) == 1:
                 crystals.build(closest_crystal)
@@ -219,9 +227,8 @@ class Player:
     def step(self, action, crystals, dragon):
         """
         :param action: Actions: 0 Up, 1 Right, 2 Down, 3 Left, 4 Noop, 5 Attack, 6 Switch Weapon, 7 Build
-        :param crystals
-        :param dragon
         """
+        # Handles the remaining possible actions
         if action <= 4:
             self.move(action, crystals, dragon)
         if action == 5:
@@ -244,6 +251,7 @@ class Player:
 
 class Crystals:
     def __init__(self, num, ring):
+        # Handles all the crystal positions, as well as tracks which ones were built next to
         start = np.random.choice(len(ring))
         inc = len(ring) // num
         self.built = [2 for _ in range(num)]
@@ -289,12 +297,19 @@ class DragonFight(SaveLoadEnv):
 
     def step(self, action):
         self.time += 1
+
+        # Handles dragon step, if it's doing the breath attack it'll return the breath object
         proj = self.dragon.step(self.player)
         if isinstance(proj, Breath):
             self.dragon_breath.append(proj)
-        num_crystals = len(self.crystals.crystals)
+
+        num_crystals = len(self.crystals.num_crystals)
         initial_hp = self.player.health
+
         self.player.step(action, self.crystals, self.dragon)
+
+        # Checks all the breaths that exist, removes the ones that have expired
+        # and hits the player if they are currently in one
         expired_breath = []
         for breath in self.dragon_breath:
             breath.step()
@@ -306,28 +321,23 @@ class DragonFight(SaveLoadEnv):
         for breath in expired_breath:
             if breath in self.dragon_breath:
                 self.dragon_breath.remove(breath)
-        num_destroyed = num_crystals - len(self.crystals.crystals)
+
+        # Used to rewards
+        num_destroyed = num_crystals - len(self.crystals.num_crystals)
         hp_lost = initial_hp - self.player.health
+
         self.obs.append(self.get_state())
-        player_health = [[self.player.health for _ in range(self.shape[0])] for _ in range(self.shape[1])]
-        dragon_health = [[self.dragon.health for _ in range(self.shape[0])] for _ in range(self.shape[1])]
-        weapon = [[1 if self.player.melee else 0 for _ in range(self.shape[0])] for _ in range(self.shape[1])]
-        built = [[0 for _ in range(self.shape[0])] for _ in range(self.shape[1])]
-        for i in range(len(self.crystals.crystals)):
-            crystal = self.crystals.crystals[i]
-            built[crystal.pos[0]][crystal.pos[1]] = self.crystals.built[i]
-        obs = list(self.obs)
-        obs.append(player_health)
-        obs.append(dragon_health)
-        obs.append(weapon)
-        obs.append(built)
+
         done = self.player.health == 0 or self.dragon.health == 0 or self.time == self.max_time
+
         reward = num_destroyed * 5 + hp_lost * (-50 / self.player_health)
         if self.player.health == 0:
             reward -= 50
         if self.dragon.health == 0:
             reward += 50
-        return np.array(obs, dtype=np.uint8), reward, done, {}
+        return self.get_obs(), reward, done, {'dragon': self.dragon, 'player': self.player,
+                                              'crystals': self.crystals,
+                                              'dragon_breath': self.dragon_breath}
 
     def reset(self):
         self.time = 0
@@ -338,6 +348,11 @@ class DragonFight(SaveLoadEnv):
         for _ in range(self.obs.maxlen - 1):
             self.obs.append([[0 for _ in range(self.shape[0])] for _ in range(self.shape[1])])
         self.obs.append(self.get_state())
+
+        return self.get_obs()
+
+    def get_obs(self):
+        # Appends the remaining information needed to  self.obs to create the observation given to the agent
         player_health = [[self.player.health for _ in range(self.shape[0])] for _ in range(self.shape[1])]
         dragon_health = [[self.dragon.health for _ in range(self.shape[0])] for _ in range(self.shape[1])]
         weapon = [[1 if self.player.melee else 0 for _ in range(self.shape[0])] for _ in range(self.shape[1])]
@@ -361,7 +376,7 @@ class DragonFight(SaveLoadEnv):
         obs = [[0 for _ in range(self.shape[0])] for _ in range(self.shape[1])]
         # There will be logic checking that the player isn't in the same position as the crystals, but the dragon can be
         obs[self.player.pos[0]][self.player.pos[1]] = 1
-        for crystal in self.crystals.crystals:
+        for crystal in self.crystals.num_crystals:
             obs[crystal.pos[0]][crystal.pos[1]] = 3
         for pos in self.dragon.positions():
             if pos[0] >= self.shape[0] or pos[1] >= self.shape[1]:
