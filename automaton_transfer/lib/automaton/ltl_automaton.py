@@ -117,6 +117,9 @@ class LTLAutomaton(Automaton):
             # mona_dfa = parsed.to_dfa()
             # dot_dfa = spot.translate(ltlf, 'deterministic').to_str('dot')
             # dfa: SymbolicDFA = from_dot_spot(dot_dfa)
+            ltl_parser = LTLfParser()
+            parsed_formula = ltl_parser(ltlf)
+            dfa: SymbolicDFA = parsed_formula.to_automaton().determinize()
             pass
         else:
             ltl_parser = LTLfParser()
