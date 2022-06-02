@@ -17,5 +17,5 @@ dragon_fight_aps = [
     AP('dragon_damaged', DragonDamaged())
 ]
 
-dragon_fight_ltlf = '(in_path_of_dragon -> F !in_path_of_dragon) & (in_path_of_breath -> F !in_path_of_breath) & G(' \
+dragon_fight_ltlf = 'G(in_path_of_dragon -> F !in_path_of_dragon) & G(in_path_of_breath -> F !in_path_of_breath) & G(' \
                     'crystals_remain -> F crystal_destroyed) & G(!crystals_remain -> F dragon_damaged)'
