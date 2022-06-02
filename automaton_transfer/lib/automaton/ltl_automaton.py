@@ -145,23 +145,49 @@ class LTLAutomaton(Automaton):
 
 
 def from_dot_spot(dfa):
+    """
+    What the dot representation from spot looks like
+    ['digraph "" {',
+     '  rankdir=LR',
+     '  label=<[Büchi]>',
+     '  labelloc="t"',
+     '  node [shape="circle"]',
+     '  node [style="filled", fillcolor="#ffffaa"]',
+     '  fontname="Lato"',
+     '  node [fontname="Lato"]',
+     '  edge [fontname="Lato"]',
+     '  size="10.13,5" edge[arrowhead=vee, arrowsize=.7]',
+     '  I [label="", style=invis, width=0]',
+     '  I -> 1',
+     '  0 [label=<0>, peripheries=2]',
+     '  0 -> 0 [label=<1>]',
+     '  1 [label=<1>]',
+     '  1 -> 0 [label=<b>]',
+     '  1 -> 1 [label=<a &amp; !b>]',
+     '}',
+     '']
+    """
     new_automaton = SymbolicDFA()
     initial_state = -1
     current_state = 0
     states = {0}
     lines = dfa.split('\n')
     for line in lines:
-        if re.match('\s+I -> \d+', line):
-            initial_state = int(line.split(' ')[-1])
         if line == '}':
             break
-        if re.match('\s+\d+ \[label=.+\]', line):
+        # Gets the initial state
+        if re.match(r'\s+I -> \d+', line):
+            initial_state = int(line.split(' ')[-1])
+
+        # Checks if it's initializing a new state
+        if re.match(r'\s+\d+ \[label=.+\]', line):
             if int(line[2]) in states:
                 continue
             new_automaton.create_state()
             current_state += 1
             states.add(current_state)
-        elif re.match('\s+\d+ -> \d+ \[label=.+\]', line):
+        elif re.match(r'\s+\d+ -> \d+ \[label=.+\]', line):
+            # Gets the receiving state
             temp = line[:line.index('[')].split(' ')
             initial = int(temp[2])
             receive = int(temp[4])
@@ -169,11 +195,16 @@ def from_dot_spot(dfa):
                 new_automaton.create_state()
                 current_state += 1
                 states.add(current_state)
-            label = line[line.index('<') + 1:-2]
+
+            # Gets the edge label
+            temp = line[line.index('[') + 1:]
+            label = re.match('label=<.+?[<>]', temp)
+            label = label[0][7:-1]
             if 'amp;' in label:
                 label = label.replace('amp;', '')
             if '!' in label:
                 label = label.replace('!', '~')
             new_automaton.add_transition((initial, label, receive))
+
     new_automaton.set_initial_state(initial_state)
     return new_automaton
