@@ -8,7 +8,7 @@ from automaton_transfer.run.utils import teacher_config_v1
 
 device = torch.device("cuda:0")
 config = teacher_config_v1(dungeon_quest_env_config_7, "dungeon_quest_teacher_7_productMDP", device, 
-                            agent_cls=OneHotAutomatonAfterFeatureExtractorAgent, aps=dungeon_quest_aps,
+                           agent_cls=OneHotAutomatonAfterFeatureExtractorAgent, aps=dungeon_quest_aps,
                            ltlf=dungeon_quest_ltlf)
 
 if __name__ == '__main__':
