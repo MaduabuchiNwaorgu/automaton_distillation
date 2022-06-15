@@ -47,7 +47,7 @@ door_quest_exp_env_config = EnvConfig(
 
 door_quest_rew_per_step_env_config = EnvConfig(
     env_name="MineWorldEnv-v0",
-    kwargs={"config": dungeon_quest_config},
+    kwargs={"config": door_quest_config},
     wrapper_cls=RewEveryStep,
     wrapper_kwargs={"rew_per_step": -0.1}
 )
