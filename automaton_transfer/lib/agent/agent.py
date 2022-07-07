@@ -29,6 +29,9 @@ class Agent(ABC, nn.Module):
     def calc_q_values_batch(self, observation: torch.Tensor, automaton_state: torch.Tensor) -> torch.Tensor:
         """Automaton_state should be a LongTensor"""
         pass
+    
+    def calc_v_values_batch(self, observation: torch.Tensor, automaton_state: torch.Tensor) -> torch.Tensor:
+        return self.calc_q_values_batch(observation, automaton_state).amax(dim=-1)
 
     @abc.abstractmethod
     def create_target_agent(self) -> "TargetAgent":

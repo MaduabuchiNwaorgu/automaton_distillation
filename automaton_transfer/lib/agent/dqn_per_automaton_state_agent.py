@@ -46,6 +46,17 @@ class DQNPerAutomatonStateAgent(Agent):
 
     def calc_q_values_batch(self, observation: torch.Tensor, automaton_states: torch.Tensor) -> torch.Tensor:
         return self(observation, automaton_states)
+    
+    def calc_v_values_batch(self, observation: torch.Tensor, automaton_state: torch.Tensor) -> torch.Tensor:
+        features = self.feature_extractor(obs)
+        val_stream, _ = torch.split(features, self.half_feat_extractor_output_size, dim=1)
+
+        # Val and adv are because of dueling Q-network architecture, not actor critic
+        val_stream = self.flattener(val_stream)
+
+        val = self.val_branch(automaton_states, val_stream)
+        
+        return val
 
     def create_target_agent(self) -> "TargetAgent":
         eta = EasyTargetAgent(self, DQNPerAutomatonStateAgent(self.input_shape, self.num_automaton_states,

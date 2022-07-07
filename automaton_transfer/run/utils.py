@@ -28,7 +28,7 @@ dummy_ltlf = "True"
 
 def teacher_config_v1(env_config: EnvConfig, run_name: str, device: torch.device, agent_cls=DuelingQNetworkAgent,
                       no_done_on_out_of_time: bool = False, aps: List = dummy_aps, ltlf: str = dummy_ltlf,
-                      max_training_steps=int(1e6)):
+                      max_training_steps=int(1e6), online_distill: bool = False):
     automaton, ap_extractor = construct_ap_extractor_automaton(aps, ltlf, device)
 
     return Configuration(
@@ -49,6 +49,8 @@ def teacher_config_v1(env_config: EnvConfig, run_name: str, device: torch.device
         checkpoint_every_steps=int(1e4),
         gamma=0.99,
         intrinsic_reward_calculator=DummyIntrinsicRewardCalculator(),
+        distill=online_distill,
+        temperature=0.01,
         no_done_on_out_of_time=no_done_on_out_of_time,
         ap_extractor=ap_extractor,
         device=device,
@@ -69,14 +71,14 @@ def student_config_v1(env_config: EnvConfig, teacher_run_name: str, student_run_
         env_config=env_config,
         automaton=anneal_target_aut_class(
             inner_automaton=teacher_config.automaton,
-            source_q_count=teacher_aut_info["aut_num_q"],
-            source_q_total=teacher_aut_info["aut_total_q"],
+            teacher_aut_info=teacher_aut_info,
             device=device,
             min_source_q_count=1,
             **anneal_target_aut_kwargs
         ),
         run_name=student_run_name,
         gamma=new_gamma,
+        distill=False,
         max_training_steps=max_training_steps,
         no_done_on_out_of_time=no_done_on_out_of_time
     )
@@ -84,7 +86,7 @@ def student_config_v1(env_config: EnvConfig, teacher_run_name: str, student_run_
     return student_config
 
 def teacher_config_productMDP(env_config: EnvConfig, run_name: str, device: torch.device, agent_cls=OneHotAutomatonAfterFeatureExtractorAgent,
-                      no_done_on_out_of_time: bool = False):
+                      no_done_on_out_of_time: bool = False, online_distill: bool = False):
     automaton, ap_extractor = construct_ap_extractor_automaton(blind_craftsman_aps, blind_craftsman_ltlf, device)
 
     return Configuration(
@@ -105,6 +107,8 @@ def teacher_config_productMDP(env_config: EnvConfig, run_name: str, device: torc
         checkpoint_every_steps=int(1e4),
         gamma=0.99,
         intrinsic_reward_calculator=DummyIntrinsicRewardCalculator(),
+        distill=online_distill,
+        temperature=0.01,
         no_done_on_out_of_time=no_done_on_out_of_time,
         ap_extractor=ap_extractor,
         device=device,

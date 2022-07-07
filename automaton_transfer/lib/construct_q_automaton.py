@@ -24,18 +24,27 @@ def construct_q_automaton(agent, rollout_buffer, ap_extractor, automaton, device
     aut_num_q = torch.zeros((automaton.num_states, ap_extractor.num_transitions()), dtype=torch.int32,
                             device=device)
     aut_total_q = torch.zeros_like(aut_num_q, dtype=torch.float)
+    aut_num_v = torch.zeros(automaton.num_states, dtype=torch.int32,
+                            device=device)
+    aut_total_v = torch.zeros_like(aut_num_v, dtype=torch.float)
 
     for rollout_indices in tqdm(rollout_buffer.iterate_episode_indices()):
         sample = rollout_buffer.get_rollout_sample_from_indices(rollout_indices)
         q_vals_batch = agent.calc_q_values_batch(sample.states, sample.aut_states).detach()
+        v_vals = agent.calc_v_values_batch(sample.states, sample.aut_states).detach()
         action_q_vals = q_vals_batch[range(len(q_vals_batch)), sample.actions]
 
         aut_num_q[sample.aut_states, sample.aps] += 1
         aut_total_q[sample.aut_states, sample.aps] += action_q_vals
+        
+        aut_num_v[sample.aut_states] += 1
+        aut_total_v[sample.aut_states] += v_vals
 
     to_save = {
         "aut_num_q": aut_num_q.tolist(),
-        "aut_total_q": aut_total_q.tolist()
+        "aut_total_q": aut_total_q.tolist(),
+        "aut_num_v": aut_num_v.tolist(),
+        "aut_total_v": aut_total_v.tolist()
     }
 
     if not path.exists("automaton_q"):

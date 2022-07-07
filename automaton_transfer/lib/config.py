@@ -43,6 +43,8 @@ class Configuration(NamedTuple):
     checkpoint_every_steps: int
     gamma: float  # Discount factor
     intrinsic_reward_calculator: "intrew.IntrinsicRewardCalculator"
+    distill: bool # Whether or not to perform online policy distillation
+    temperature: float # Temperature for policy distillation
     # When training, "done" implies that Q_max(next_state)=0. However, if the episode
     # terminated due to running out of time, this assumption may not make sense.
     # Set no_done_on_out_of_time=True to not have a "done" when the episode runs out of time

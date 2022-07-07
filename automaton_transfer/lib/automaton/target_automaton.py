@@ -8,7 +8,7 @@ from automaton_transfer.lib.automaton.automaton import Automaton
 
 class TargetAutomaton(Automaton, ABC):
     """
-    Represents an automaton where each transition has an associated Q-value
+    Represents an automaton where each state has an associated V-value and each transition has an associated Q-value
     """
 
     @abc.abstractmethod
@@ -20,6 +20,11 @@ class TargetAutomaton(Automaton, ABC):
     def target_q_weights(self, aut_states: torch.Tensor, aps: torch.Tensor, iter_num: int) -> torch.Tensor:
         """How much should the Q-value for a state and transition be weighted versus the "real" target Q value"""
         pass
+    
+    @abc.abstractmethod
+    def target_reward_shaping(self, aut_states: torch.Tensor, aut_states_after_current: torch.Tensor) -> torch.Tensor:
+        """"""
+        pass
 
     @abc.abstractmethod
     def update_training_observed_count(self, aut_states: torch.Tensor, aps: torch.Tensor):
@@ -28,7 +33,6 @@ class TargetAutomaton(Automaton, ABC):
         Note that this is called when the state is sampled from the replay buffer, not when it is seen in the actual env
         """
         pass
-
 
 class AbstractTargetAutomatonWrapper(TargetAutomaton, ABC):
     """
@@ -71,7 +75,7 @@ class AnnealTargetAutomaton(AbstractTargetAutomatonWrapper, ABC):
     This is probably the most useful class to extend in this file
     """
 
-    def __init__(self, inner_automaton: Automaton, source_q_total, source_q_count, min_source_q_count: int,
+    def __init__(self, inner_automaton: Automaton, teacher_aut_info, min_source_q_count: int,
                  device: torch.device):
         """
         :param source_q_total: This is divided by source_q_count to obtain the q values of a transition
@@ -81,8 +85,8 @@ class AnnealTargetAutomaton(AbstractTargetAutomatonWrapper, ABC):
         """
         super().__init__(inner_automaton)
         self.min_source_q_count = min_source_q_count
-        self.source_q_total = torch.as_tensor(source_q_total, dtype=torch.float, device=device)
-        self.source_q_count = torch.as_tensor(source_q_count, dtype=torch.int, device=device)
+        self.source_q_total = torch.as_tensor(teacher_aut_info["aut_total_q"], dtype=torch.float, device=device)
+        self.source_q_count = torch.as_tensor(teacher_aut_info["aut_num_q"], dtype=torch.int, device=device)
         self._cached_source_q_values = torch.zeros_like(self.source_q_total)
 
         self.target_q_count = torch.zeros_like(self.source_q_count)
@@ -97,7 +101,7 @@ class AnnealTargetAutomaton(AbstractTargetAutomatonWrapper, ABC):
         self._cached_source_q_values = torch.where(self.source_q_count != 0,
                                                    self.source_q_total / self.source_q_count,
                                                    torch.as_tensor(0.0, dtype=torch.float, device=self.device))
-
+    
     @abc.abstractmethod
     def calc_q_weights(self, source_q_count, target_q_count, iter_num):
         """
@@ -148,12 +152,11 @@ class ExponentialAnnealTargetAutomaton(AnnealTargetAutomaton):
     Decrease the importance of the source values exponentially as more target transitions are observed
     """
 
-    def __init__(self, inner_automaton: Automaton, source_q_total, source_q_count, min_source_q_count: int,
+    def __init__(self, inner_automaton: Automaton, teacher_aut_info, min_source_q_count: int,
                  device: torch.device,
                  exponent_base: float):
         super().__init__(inner_automaton=inner_automaton,
-                         source_q_total=source_q_total,
-                         source_q_count=source_q_count,
+                         teacher_aut_info=teacher_aut_info,
                          min_source_q_count=min_source_q_count,
                          device=device)
 
@@ -161,3 +164,26 @@ class ExponentialAnnealTargetAutomaton(AnnealTargetAutomaton):
 
     def calc_q_weights(self, source_q_count, target_q_count, iter_num):
         return torch.pow(self.exponent_base, target_q_count)
+    
+    def target_reward_shaping(self, aut_states, aut_states_after_current):
+        return torch.zeros_like(aut_states)
+
+class RewardShapingTargetAutomaton(AnnealTargetAutomaton):
+    def __init__(self, inner_automaton: Automaton, teacher_aut_info, min_source_q_count: int,
+                device: torch.device, gamma: float):
+        super().__init__(inner_automaton=inner_automaton,
+                         teacher_aut_info=teacher_aut_info,
+                         min_source_q_count=min_source_q_count,
+                         device=device)
+        
+        source_v_total = torch.as_tensor(teacher_aut_info["aut_total_v"], dtype=torch.float, device=device)
+        source_v_count = torch.as_tensor(teacher_aut_info["aut_num_v"], dtype=torch.float, device=device)
+        
+        self.v = source_v_total / source_v_count
+        self.gamma = gamma
+    
+    def calc_q_weights(self, source_q_count, target_q_count, iter_num):
+        return torch.as_tensor(0.0, dtype=torch.float, device=self.device)
+    
+    def target_reward_shaping(self, aut_states, aut_states_after_current):
+        return self.v[aut_states.long()] - self.gamma * self.v[aut_states_after_current.long()]

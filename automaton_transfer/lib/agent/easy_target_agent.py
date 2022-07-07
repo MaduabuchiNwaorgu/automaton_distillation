@@ -27,7 +27,10 @@ class EasyTargetAgent(TargetAgent):
 
     def calc_q_values_batch(self, observation: torch.Tensor, automaton_states: torch.Tensor) -> torch.Tensor:
         return self.target.calc_q_values_batch(observation, automaton_states)
-
+    
+    def calc_v_values_batch(self, observation: torch.Tensor, automaton_state: torch.Tensor) -> torch.Tensor:
+        return self.target.calc_v_values_batch(observation, automaton_states)
+    
     def create_target_agent(self) -> "TargetAgent":
         raise NotImplementedError("Shouldn't create targets of target agents")
 

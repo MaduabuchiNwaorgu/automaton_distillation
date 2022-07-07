@@ -1,6 +1,6 @@
 venv
 checkpoints
-logs
+*logs*
 aut_cache.json
 automaton_q
 .idea
