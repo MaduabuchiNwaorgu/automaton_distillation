@@ -179,7 +179,7 @@ class RewardShapingTargetAutomaton(AnnealTargetAutomaton):
         source_v_total = torch.as_tensor(teacher_aut_info["aut_total_v"], dtype=torch.float, device=device)
         source_v_count = torch.as_tensor(teacher_aut_info["aut_num_v"], dtype=torch.float, device=device)
         
-        self.v = source_v_total / source_v_count
+        self.v = source_v_total / (source_v_count + 1e-20)
         self.gamma = gamma
     
     def calc_q_weights(self, source_q_count, target_q_count, iter_num):
