@@ -15,7 +15,8 @@ class MineWorldTileType:
     """A single special tile in the mine world"""
 
     def __init__(self, consumable: bool, inventory_modifier: Counter, action_name: str, grid_letter: str,
-                 wall: bool = False, reward: int = 0, terminal: bool = False, inventory_requirements: Counter = None):
+                 wall: bool = False, reward: int = 0, terminal: bool = False, inventory_requirements: Counter = None,
+                 movement_requirements: Counter = None):
         """
         :param consumable: Does this tile disappear after being activated
         :param inventory_modifier: How does this modify the inventory (e.g. wood -2, desk +1)
@@ -29,7 +30,8 @@ class MineWorldTileType:
         self.wall = wall
         self.reward = reward
         self.terminal = terminal
-        self.inventory_requirements = inventory_requirements if inventory_requirements else Counter()
+        self.inventory_requirements = inventory_requirements or Counter()
+        self.movement_requirements = movement_requirements or Counter()
 
     def apply_inventory(self, prev_inventory: Counter):
         """
@@ -57,6 +59,14 @@ class MineWorldTileType:
         inv_non_neg_ok = not any([(inv_non_neg_temp[i] < 0) for i in inv_non_neg_temp])
 
         return requirements_ok and inv_non_neg_ok
+    
+    def move_requirements(self, current_inventory: Counter):
+        inv_requirements_temp = current_inventory.copy()
+        inv_requirements_temp.subtract(self.movement_requirements)
+
+        requirements_ok = not any([(inv_requirements_temp[i] < 0) for i in inv_requirements_temp])
+
+        return requirements_ok
 
     @staticmethod
     def from_dict(dict):
@@ -201,7 +211,8 @@ class MineWorldEnv(GridEnv, SaveLoadEnv):
             can_move = self._in_bounds(new_place)
 
             if new_place in self.special_tiles:
-                if self.special_tiles[new_place].wall:
+                tile = self.special_tiles[new_place]
+                if tile.wall or not tile.move_requirements(self.inventory):
                     can_move = False
 
             if can_move:
