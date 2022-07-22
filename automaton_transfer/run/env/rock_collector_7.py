@@ -27,7 +27,8 @@ rock_collector_config_7 = MineWorldConfig(
         ),
         TilePlacement(
             tile=MineWorldTileType(
-                action_name="hill", consumable=False, grid_letter="^", movement_requirements=Counter(not_brock=1)
+                action_name="hill", consumable=False, grid_letter="^", inventory_modifier=Counter(),
+                movement_requirements=Counter(not_brock=1)
             ),
             fixed_placements=[(0, 1), (0, 5), (0, 6), (1, 0), (1, 2), (2, 3), (2, 6),
             (3, 2),(3, 5), (4, 0), (5, 0), (5, 3), (5, 5), (6, 1), (6, 2), (6, 3), (6, 5)]
