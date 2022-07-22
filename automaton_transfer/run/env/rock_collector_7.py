@@ -51,19 +51,19 @@ rock_collector_config_7 = MineWorldConfig(
 
 rock_collector_env_config_7 = EnvConfig(
     env_name="MineWorldEnv-v0",
-    kwargs={"config": rock_collector_config}
+    kwargs={"config": rock_collector_config_7}
 )
 
 rock_collector_exp_env_config_7 = EnvConfig(
     env_name="MineWorldEnv-v0",
-    kwargs={"config": rock_collector_config},
+    kwargs={"config": rock_collector_config_7},
     wrapper_cls=TimeLimit,
     wrapper_kwargs={"max_episode_steps": 999, "rew_on_expired": -1}
 )
 
 rock_collector_rew_per_step_env_config_7 = EnvConfig(
     env_name="MineWorldEnv-v0",
-    kwargs={"config": rock_collector_config},
+    kwargs={"config": rock_collector_config_7},
     wrapper_cls=RewEveryStep,
     wrapper_kwargs={"rew_per_step": -0.1}
 )
