@@ -92,7 +92,7 @@ def student_config_reward_machine(env_config: EnvConfig, teacher_run_name: str, 
                       ltlf: str = dummy_ltlf):
     teacher_config = teacher_config_v1(env_config, teacher_run_name, device, agent_cls, aps=aps, ltlf=ltlf)
     
-    reward_machine = RewardMachine.from_json(teacher_config)
+    reward_machine = RewardMachine.from_json(teacher_config, device)
     
     student_config = teacher_config._replace(
         env_config=env_config,
