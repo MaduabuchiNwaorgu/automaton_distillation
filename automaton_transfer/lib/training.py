@@ -11,6 +11,7 @@ from automaton_transfer.lib.agent.agent import Agent, TargetAgent
 from automaton_transfer.lib.automaton.ap_extractor import APExtractor
 from automaton_transfer.lib.automaton.automaton import Automaton
 from automaton_transfer.lib.automaton.target_automaton import TargetAutomaton
+from automaton_transfer.lib.automaton.reward_machine import RewardMachine
 from automaton_transfer.lib.checkpoint import save_checkpoint, Checkpoint
 from automaton_transfer.lib.config import Configuration
 from automaton_transfer.lib.create_training_state import create_training_state
@@ -56,6 +57,59 @@ def learn(config: Configuration, optim: Optimizer, agent: Agent, target_agent: T
     # What are the q-values that the current agent predicts for the actions it took
     q_values = agent.calc_q_values_batch(rollout_sample.states, rollout_sample.aut_states)
     action_q_values = q_values[range(config.agent_train_batch_size), rollout_sample.actions]
+
+    # Sample q values that we get wrong more often
+    error = action_q_values - target_q
+    rollout_buffer.set_priorities(indices=indices, errors=error.detach())
+
+    # Actually train the neural network
+    loss = F.mse_loss(input=action_q_values, target=target_q, reduction='none')
+    loss = (loss * importance).mean()
+    loss.backward()
+
+    logger.add_scalar("training/loss", float(loss), global_step=iter_num)
+
+    optim.step()
+    
+def crm(config: Configuration, optim: Optimizer, agent: Agent, target_agent: TargetAgent,
+          rollout_buffer: RolloutBuffer, automaton: RewardMachine, logger: SummaryWriter, iter_num: int):
+    """
+    Perform double Q-network gradient descent on a batch of samples from the rollout buffer (from deepsynth)
+    """
+    optim.zero_grad()
+
+    rollout_sample, indices, importance = rollout_buffer.sample(config.agent_train_batch_size,
+                                                                automaton.num_states,
+                                                                priority_scale=config.rollout_buffer_config.priority_scale)
+
+    importance = torch.pow(importance, 1 - config.epsilon)  # So that high-priority states aren't _too_ overrepresented
+
+    # Generate counterfactual experiences
+    aut_states = torch.arange(automaton.aut.num_states * config.agent_train_batch_size, device=automaton.device) // config.agent_train_batch_size
+    aps = rollout_sample.aps.repeat(automaton.aut.num_states)
+    
+    states = rollout_sample.states.repeat(automaton.aut.num_states)
+    actions = rollout_sample.actions.repeat(automaton.aut.num_states)
+    next_states = rollout_sample.next_states.repeat(automaton.aut.num_states)
+    next_aut_states = automaton.aut.step_batch(aut_states, aps)
+    rewards = automaton.reward_mat[aut_states, aps]
+    dones = rollout_sample.dones.repeat(automaton.aut.num_states)
+
+    # Estimate best action in new states using main Q network
+    q_max = agent.calc_q_values_batch(next_states, next_aut_states)
+    arg_q_max = torch.argmax(q_max, dim=1)
+
+    # Target DQN estimates q-values
+    future_q_values = target_agent.calc_q_values_batch(next_states, next_aut_states)
+    double_q = future_q_values[range(config.agent_train_batch_size), arg_q_max]
+
+    # Calculate targets (bellman equation)
+    target_q = rewards + (config.gamma * double_q * (~dones).float())
+    target_q = target_q.detach()
+
+    # What are the q-values that the current agent predicts for the actions it took
+    q_values = agent.calc_q_values_batch(states, aut_states)
+    action_q_values = q_values[range(config.agent_train_batch_size), actions]
 
     # Sample q values that we get wrong more often
     error = action_q_values - target_q
@@ -435,8 +489,12 @@ def train_agent(config: Configuration,
 
         if rollout_buffer.num_filled_approx() >= config.rollout_buffer_config.min_size_before_training:
             # Train off-policy
-            learn(config=config, optim=optimizer, agent=agent, target_agent=target_agent, rollout_buffer=rollout_buffer,
-                  automaton=automaton, logger=logger, iter_num=i)
+            if isinstance(automaton, RewardMachine):
+                crm(config=config, optim=optimizer, agent=agent, target_agent=target_agent, rollout_buffer=rollout_buffer,
+                    automaton=automaton, logger=logger, iter_num=i)
+            else:
+                learn(config=config, optim=optimizer, agent=agent, target_agent=target_agent, rollout_buffer=rollout_buffer,
+                      automaton=automaton, logger=logger, iter_num=i)
             
             # Policy distillation
             if config.distill:

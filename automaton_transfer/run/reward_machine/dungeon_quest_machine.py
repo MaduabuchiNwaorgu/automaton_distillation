@@ -1,7 +1,7 @@
 import torch
 
 from automaton_transfer.run.utils import construct_ap_extractor_automaton
-from automaton_transfer.run.reward_machine.reward_machine import RewardMachine
+from automaton_transfer.lib.automaton.reward_machine import RewardMachine
 from automaton_transfer.run.env.dungeon_quest import dungeon_quest_aps, dungeon_quest_ltlf
 
 device = torch.device("cuda:0")
