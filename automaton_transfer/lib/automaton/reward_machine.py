@@ -7,15 +7,18 @@ import numpy as np
 import torch
 
 from automaton_transfer.lib.automaton.automaton import Automaton
+from automaton_transfer.lib.automaton.target_automaton import AbstractTargetAutomatonWrapper
 from automaton_transfer.lib.config import Configuration
 
-class RewardMachine:
+class RewardMachine(AbstractTargetAutomatonWrapper):
     def __init__(self, automaton: Automaton, reward_adj_list: np.ndarray, terminal_states: np.ndarray, name: str, device: torch.device, gamma: float = 0.99):
+        super(RewardMachine, self).__init__(automaton)
+        
         self.reward_mat = torch.as_tensor(reward_adj_list, dtype=torch.float, device=device)
         self.aut = automaton
         self.device = device
         self.gamma = gamma
-        self.terminal_states = terminal_states
+        self.terminal_states = torch.as_tensor(terminal_states, dtype=torch.float, device=device)
         
         self.value_iter()
         
@@ -36,10 +39,10 @@ class RewardMachine:
     
     @staticmethod
     def from_json(config: Configuration, device: torch.device):
-        with open(f"automaton_q/{config.name}.json", "r") as f:
+        with open(f"automaton_q/{config.run_name}.json", "r") as f:
             teacher_aut_info = json.load(f)
         
-        return RewardMachine(config.automaton, teacher_aut_info["reward_mat"], teacher_aut_info["terminal_states"], config.name, device)
+        return RewardMachine(config.automaton, teacher_aut_info["reward_mat"], teacher_aut_info["terminal_states"], config.run_name, device)
     
     def value_iter(self):
         self.q = torch.zeros_like(self.reward_mat)
