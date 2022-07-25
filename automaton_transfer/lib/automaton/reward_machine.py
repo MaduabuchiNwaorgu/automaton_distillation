@@ -7,15 +7,12 @@ import numpy as np
 import torch
 
 from automaton_transfer.lib.automaton.automaton import Automaton
-from automaton_transfer.lib.automaton.target_automaton import AbstractTargetAutomatonWrapper
 from automaton_transfer.lib.config import Configuration
 
-class RewardMachine(AbstractTargetAutomatonWrapper):
+class RewardMachine(Automaton):
     def __init__(self, automaton: Automaton, reward_adj_list: np.ndarray, terminal_states: np.ndarray, name: str, device: torch.device, gamma: float = 0.99):
-        super(RewardMachine, self).__init__(automaton)
-        
         self.reward_mat = torch.as_tensor(reward_adj_list, dtype=torch.float, device=device)
-        self.aut = automaton
+        self.inner_automaton = automaton
         self.device = device
         self.gamma = gamma
         self.terminal_states = torch.as_tensor(terminal_states, dtype=torch.float, device=device)
@@ -65,3 +62,27 @@ class RewardMachine(AbstractTargetAutomatonWrapper):
                 self.q[state, actions] = new_q
                         
         self.v = self.q.amax(axis=1)
+    
+    @property
+    def default_state(self) -> int:
+        return self.inner_automaton.default_state
+
+    @property
+    def num_states(self) -> int:
+        return self.inner_automaton.num_states
+
+    @property
+    def num_aps(self) -> int:
+        return self.inner_automaton.num_aps
+
+    def step_batch(self, current_states: torch.tensor, aps_after_current: torch.tensor) -> torch.tensor:
+        return self.inner_automaton.step_batch(current_states, aps_after_current)
+
+    def step_single(self, current_state: int, ap: int) -> int:
+        return self.inner_automaton.step_single(current_state, ap)
+
+    def state_dict(self):
+        return self.inner_automaton.state_dict()
+
+    def load_state_dict(self, state_dict):
+        self.inner_automaton.load_state_dict(state_dict)

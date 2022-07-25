@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from automaton_transfer.lib.agent.agent import Agent, TargetAgent
 from automaton_transfer.lib.automaton.ap_extractor import APExtractor
-from automaton_transfer.lib.automaton.automaton import Automaton
+from automaton_transfer.lib.automaton.omaton import Automaton
 from automaton_transfer.lib.automaton.target_automaton import TargetAutomaton
 from automaton_transfer.lib.automaton.reward_machine import RewardMachine
 from automaton_transfer.lib.checkpoint import save_checkpoint, Checkpoint
@@ -85,15 +85,15 @@ def crm(config: Configuration, optim: Optimizer, agent: Agent, target_agent: Tar
     importance = torch.pow(importance, 1 - config.epsilon)  # So that high-priority states aren't _too_ overrepresented
 
     # Generate counterfactual experiences
-    aut_states = torch.arange(automaton.aut.num_states * config.agent_train_batch_size, device=automaton.device) // config.agent_train_batch_size
-    aps = rollout_sample.aps.repeat(automaton.aut.num_states)
+    aut_states = torch.arange(automaton.num_states * config.agent_train_batch_size, device=automaton.device) // config.agent_train_batch_size
+    aps = rollout_sample.aps.repeat(automaton.num_states)
     
-    states = rollout_sample.states.repeat(automaton.aut.num_states)
-    actions = rollout_sample.actions.repeat(automaton.aut.num_states)
-    next_states = rollout_sample.next_states.repeat(automaton.aut.num_states)
-    next_aut_states = automaton.aut.step_batch(aut_states, aps)
+    states = rollout_sample.states.repeat(automaton.num_states)
+    actions = rollout_sample.actions.repeat(automaton.num_states)
+    next_states = rollout_sample.next_states.repeat(automaton.num_states)
+    next_aut_states = automaton.step_batch(aut_states, aps)
     rewards = automaton.reward_mat[aut_states, aps]
-    dones = rollout_sample.dones.repeat(automaton.aut.num_states)
+    dones = rollout_sample.dones.repeat(automaton.num_states)
 
     # Estimate best action in new states using main Q network
     q_max = agent.calc_q_values_batch(next_states, next_aut_states)
