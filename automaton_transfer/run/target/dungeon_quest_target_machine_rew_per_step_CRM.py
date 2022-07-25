@@ -1,5 +1,6 @@
 import torch
 
+from automaton_transfer.lib.agent.one_hot_automaton_agent import OneHotAutomatonAfterFeatureExtractorAgent
 from automaton_transfer.lib.automaton.target_automaton import RewardShapingTargetAutomaton
 from automaton_transfer.lib.main import run_training
 from automaton_transfer.run.env.dungeon_quest import dungeon_quest_rew_per_step_env_config
@@ -11,6 +12,7 @@ config = student_config_reward_machine(
     env_config=dungeon_quest_rew_per_step_env_config,
     teacher_run_name="dungeon_quest_machine_rew_per_step",
     student_run_name="dungeon_quest_target_machine_rew_per_step_CRM",
+    agent_cls=OneHotAutomatonAfterFeatureExtractorAgent,
     device=device,
     aps=dungeon_quest_aps,
     ltlf=dungeon_quest_ltlf

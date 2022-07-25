@@ -87,9 +87,9 @@ def student_config_v1(env_config: EnvConfig, teacher_run_name: str, student_run_
     return student_config
 
 def student_config_reward_machine(env_config: EnvConfig, teacher_run_name: str, student_run_name: str,
-                      device: torch.device, anneal_target_aut_kwargs, new_gamma: float = 0.99,
-                      agent_cls=DuelingQNetworkAgent, max_training_steps=int(1e6),
-                      no_done_on_out_of_time=False, aps: List = dummy_aps, ltlf: str = dummy_ltlf):
+                      device: torch.device, new_gamma: float = 0.99, agent_cls=DuelingQNetworkAgent,
+                      max_training_steps=int(1e6), no_done_on_out_of_time=False, aps: List = dummy_aps,
+                      ltlf: str = dummy_ltlf):
     teacher_config = teacher_config_v1(env_config, teacher_run_name, device, agent_cls, aps=aps, ltlf=ltlf)
     
     reward_machine = RewardMachine.from_json(teacher_config)
