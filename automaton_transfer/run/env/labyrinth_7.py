@@ -14,7 +14,7 @@ labyrinth_config_7 = MineWorldConfig(
     placements=[
         TilePlacement(
             tile=MineWorldTileType(
-                wall=True, grid_letter='|'
+                action_name='wall', consumable=False, inventory_modifier=Counter(), wall=True, grid_letter='|'
             ),
             fixed_placements=[[0, 1], [0, 5], [1, 1], [1, 3], [1, 5], [2, 1], [2, 3], [2, 5],
             [3, 1], [3, 3], [3, 5], [4, 1], [4, 3], [4, 5], [5, 1], [5, 3], [5, 5], [6, 3]]
