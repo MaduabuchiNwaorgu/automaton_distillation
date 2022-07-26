@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from automaton_transfer.lib.agent.agent import Agent, TargetAgent
 from automaton_transfer.lib.automaton.ap_extractor import APExtractor
-from automaton_transfer.lib.automaton.omaton import Automaton
+from automaton_transfer.lib.automaton.automaton import Automaton
 from automaton_transfer.lib.automaton.target_automaton import TargetAutomaton
 from automaton_transfer.lib.automaton.reward_machine import RewardMachine
 from automaton_transfer.lib.checkpoint import save_checkpoint, Checkpoint
@@ -71,58 +71,58 @@ def learn(config: Configuration, optim: Optimizer, agent: Agent, target_agent: T
 
     optim.step()
     
-def crm(config: Configuration, optim: Optimizer, agent: Agent, target_agent: TargetAgent,
-          rollout_buffer: RolloutBuffer, automaton: RewardMachine, logger: SummaryWriter, iter_num: int):
-    """
-    Perform double Q-network gradient descent on a batch of samples from the rollout buffer (from deepsynth)
-    """
-    optim.zero_grad()
+# def crm(config: Configuration, optim: Optimizer, agent: Agent, target_agent: TargetAgent,
+#           rollout_buffer: RolloutBuffer, automaton: RewardMachine, logger: SummaryWriter, iter_num: int):
+#     """
+#     Perform double Q-network gradient descent on a batch of samples from the rollout buffer (from deepsynth)
+#     """
+#     optim.zero_grad()
 
-    rollout_sample, indices, importance = rollout_buffer.sample(config.agent_train_batch_size,
-                                                                automaton.num_states,
-                                                                priority_scale=config.rollout_buffer_config.priority_scale)
+#     rollout_sample, indices, importance = rollout_buffer.sample(config.agent_train_batch_size,
+#                                                                 automaton.num_states,
+#                                                                 priority_scale=config.rollout_buffer_config.priority_scale)
 
-    importance = torch.pow(importance, 1 - config.epsilon)  # So that high-priority states aren't _too_ overrepresented
-
-    # Generate counterfactual experiences
-    aut_states = torch.arange(automaton.num_states * config.agent_train_batch_size, device=automaton.device) // config.agent_train_batch_size
-    aps = rollout_sample.aps.repeat(automaton.num_states)
+#     importance = torch.pow(importance, 1 - config.epsilon)  # So that high-priority states aren't _too_ overrepresented
     
-    states = rollout_sample.states.repeat(automaton.num_states)
-    actions = rollout_sample.actions.repeat(automaton.num_states)
-    next_states = rollout_sample.next_states.repeat(automaton.num_states)
-    next_aut_states = automaton.step_batch(aut_states, aps)
-    rewards = automaton.reward_mat[aut_states, aps]
-    dones = rollout_sample.dones.repeat(automaton.num_states)
+#     # Generate counterfactual experiences
+#     aut_states = torch.arange(automaton.num_states * config.agent_train_batch_size, device=automaton.device) // config.agent_train_batch_size
+#     aps = rollout_sample.aps.repeat(automaton.num_states)
+    
+#     states = rollout_sample.states.repeat((automaton.num_states, *[1 for _ in range(rollout_sample.states.dim()-1)]))
+#     actions = rollout_sample.actions.repeat(automaton.num_states)
+#     next_states = rollout_sample.next_states.repeat((automaton.num_states, *[1 for _ in range(states.dim()-1)]))
+#     next_aut_states = automaton.step_batch(aut_states, aps)
+#     rewards = automaton.reward_mat[aut_states, aps]
+#     dones = rollout_sample.dones.repeat(automaton.num_states)
+    
+#     # Estimate best action in new states using main Q network
+#     q_max = agent.calc_q_values_batch(next_states, next_aut_states)
+#     arg_q_max = torch.argmax(q_max, dim=1)
+    
+#     # Target DQN estimates q-values
+#     future_q_values = target_agent.calc_q_values_batch(next_states, next_aut_states)
+#     double_q = future_q_values[range(config.agent_train_batch_size), arg_q_max]
+    
+#     # Calculate targets (bellman equation)
+#     target_q = rewards + (config.gamma * double_q * (~dones).float())
+#     target_q = target_q.detach()
 
-    # Estimate best action in new states using main Q network
-    q_max = agent.calc_q_values_batch(next_states, next_aut_states)
-    arg_q_max = torch.argmax(q_max, dim=1)
+#     # What are the q-values that the current agent predicts for the actions it took
+#     q_values = agent.calc_q_values_batch(states, aut_states)
+#     action_q_values = q_values[range(config.agent_train_batch_size), actions]
 
-    # Target DQN estimates q-values
-    future_q_values = target_agent.calc_q_values_batch(next_states, next_aut_states)
-    double_q = future_q_values[range(config.agent_train_batch_size), arg_q_max]
+#     # Sample q values that we get wrong more often
+#     error = action_q_values - target_q
+#     rollout_buffer.set_priorities(indices=indices, errors=error.detach())
 
-    # Calculate targets (bellman equation)
-    target_q = rewards + (config.gamma * double_q * (~dones).float())
-    target_q = target_q.detach()
+#     # Actually train the neural network
+#     loss = F.mse_loss(input=action_q_values, target=target_q, reduction='none')
+#     loss = (loss * importance).mean()
+#     loss.backward()
 
-    # What are the q-values that the current agent predicts for the actions it took
-    q_values = agent.calc_q_values_batch(states, aut_states)
-    action_q_values = q_values[range(config.agent_train_batch_size), actions]
+#     logger.add_scalar("training/loss", float(loss), global_step=iter_num)
 
-    # Sample q values that we get wrong more often
-    error = action_q_values - target_q
-    rollout_buffer.set_priorities(indices=indices, errors=error.detach())
-
-    # Actually train the neural network
-    loss = F.mse_loss(input=action_q_values, target=target_q, reduction='none')
-    loss = (loss * importance).mean()
-    loss.backward()
-
-    logger.add_scalar("training/loss", float(loss), global_step=iter_num)
-
-    optim.step()
+#     optim.step()
 
 def distill(config: Configuration, optim: Optimizer, teacher: Agent, student: Agent,
             rollout_buffer: RolloutBuffer, automaton: Automaton, logger: SummaryWriter, iter_num: int):
@@ -469,6 +469,17 @@ def train_agent(config: Configuration,
         next_aut_states = reset_done_aut_states(aut_states_after_current, dones, automaton)
 
         # All of these are part of the same episode. next_states and next_aut_states may be part of a different episode
+        if isinstance(automaton, RewardMachine):
+            aut_states = torch.arange(automaton.num_states * config.agent_train_batch_size, device=automaton.device) // config.agent_train_batch_size
+            aps = aps_after_current.repeat(automaton.num_states)
+            
+            current_states = current_states.repeat((automaton.num_states, *[1 for _ in range(current_states.dim()-1)]))
+            actions = actions.repeat(automaton.num_states)
+            states_after_current = states_after_current.repeat((automaton.num_states, *[1 for _ in range(current_states.dim()-1)]))
+            aut_states_after_current = automaton.step_batch(aut_states, aps)
+            rewards = automaton.reward_mat[aut_states, aps]
+            dones = dones.repeat(automaton.num_states)
+        
         buff_helper.add_vec_experiences(current_states=current_states,
                                         actions_after_current=actions,
                                         ext_rewards_after_current=rewards,

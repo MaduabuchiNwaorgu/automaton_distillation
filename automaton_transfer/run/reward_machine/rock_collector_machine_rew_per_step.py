@@ -21,6 +21,6 @@ for i in range(automaton.num_states):
     reward_adj_list[i, automaton.adj_mat[i] != i] += 1
 
 # no reward in terminal states
-terminal_states = torch.as_tensor([0,1,0,0,1,0,0,0,0,0], dtype=torch.float, device=device)
+terminal_states = torch.as_tensor([0,1,0,0,0,0,0,0,0], dtype=torch.float, device=device)
 
 rm = RewardMachine(automaton, reward_adj_list, terminal_states, "rock_collector_machine_rew_per_step", device)

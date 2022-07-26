@@ -50,10 +50,10 @@ class RewardMachine(Automaton):
             # print(self.q)
             
             for state in torch.where(1 - self.terminal_states)[0]:
-                states = torch.ones(self.aut.num_aps, dtype=torch.long, device=self.device) * state
-                actions = torch.arange(self.aut.num_aps, dtype=torch.long, device=self.device)
+                states = torch.ones(self.num_aps, dtype=torch.long, device=self.device) * state
+                actions = torch.arange(self.num_aps, dtype=torch.long, device=self.device)
                 
-                new_states = self.aut.step_batch(states, actions).long()
+                new_states = self.step_batch(states, actions).long()
                 
                 new_q = self.reward_mat[state, actions] + self.gamma * self.q[new_states].amax(axis=1)
                 

@@ -46,7 +46,7 @@ rock_collector_config_7 = MineWorldConfig(
         TilePlacement(
             tile=MineWorldTileType(
                 action_name="at_home_done", consumable=False, grid_letter="H", inventory_modifier=Counter(),
-                inventory_requirements=Counter(srock=1, not_brock=0), reward=+100, terminal=True
+                inventory_requirements=Counter(srock=1, mrock=1, not_brock=0), reward=+100, terminal=True
             ),
             fixed_placements=[(2, 0)]
         )
@@ -84,4 +84,5 @@ rock_collector_aps = [
     AP(name="srock", func=MineInventoryAP(inventory_item="srock", quantity=1))
 ]
 
-rock_collector_ltlf = "F(at_home) & (!at_home U brock) & (!at_home U mrock) & (!at_home U srock)"
+# rock_collector_ltlf = "F(at_home) & (!at_home U brock) & (!at_home U mrock) & (!at_home U srock)"
+rock_collector_ltlf = "F(brock) & F(mrock) & F(srock) & G((brock & mrock & srock) -> F(at_home))"
