@@ -20,8 +20,8 @@ class RewardMachine(Automaton):
         self.value_iter()
         
         to_save = {
-            "reward_mat": reward_adj_list.tolist(),
-            "terminal_states": terminal_states.tolist(),
+            "reward_mat": self.reward_mat.tolist(),
+            "terminal_states": self.terminal_states.tolist(),
             "aut_num_q": torch.ones_like(self.q).tolist(),
             "aut_total_q": self.q.tolist(),
             "aut_num_v": torch.ones_like(self.v).tolist(),
