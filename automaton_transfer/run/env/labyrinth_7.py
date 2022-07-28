@@ -21,19 +21,19 @@ labyrinth_config_7 = MineWorldConfig(
         ),
         TilePlacement(
             tile=MineWorldTileType(
-                action_name="red_key", consumable=True, grid_letter="r", inventory_modifier=Counter(rkey=+1)
+                action_name="red_key", consumable=True, grid_letter="r", inventory_modifier=Counter(rkey=+1), reward=+1
             ),
             random_placements=1
         ),
         TilePlacement(
             tile=MineWorldTileType(
-                action_name="blue_key", consumable=True, grid_letter="b", inventory_modifier=Counter(rkey=-1, bkey=+1, key=+1)
+                action_name="blue_key", consumable=True, grid_letter="b", inventory_modifier=Counter(rkey=-1, bkey=+1, key=+1), reward=+1
             ),
             random_placements=1
         ),
         TilePlacement(
             tile=MineWorldTileType(
-                action_name="purple_key", consumable=True, grid_letter="p", inventory_modifier=Counter(pkey=+1, key=+1)
+                action_name="purple_key", consumable=True, grid_letter="p", inventory_modifier=Counter(pkey=+1, key=+1), reward=+2
             ),
             fixed_placements=[(0, 6)]
         ),
@@ -79,4 +79,4 @@ labyrinth_aps = [
     AP(name="pkey", func=MineInventoryAP(inventory_item="pkey", quantity=1))
 ]
 
-labyrinth_ltlf = "F(home) & (rkey R !bkey) & ((pkey | bkey) R !at_home)"
+labyrinth_ltlf = "F(at_home) & (rkey R !bkey) & ((bkey R !at_home) | (pkey R !at_home))"
