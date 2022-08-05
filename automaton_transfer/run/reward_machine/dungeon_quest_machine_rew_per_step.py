@@ -14,7 +14,7 @@ print(automaton.adj_mat)
 reward_adj_list = -0.1 * torch.ones_like(automaton.adj_mat)
 
 # success = +100
-reward_adj_list[automaton.adj_mat == 1] += 99
+reward_adj_list[automaton.adj_mat == 7] += 99
 
 # key/sword/shield/dragon = +1
 for i in range(automaton.num_states):
