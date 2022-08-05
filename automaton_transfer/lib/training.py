@@ -27,10 +27,16 @@ def learn(config: Configuration, optim: Optimizer, agent: Agent, target_agent: T
 	Perform double Q-network gradient descent on a batch of samples from the rollout buffer (from deepsynth)
 	"""
     optim.zero_grad()
-
+    
+    if isinstance(automaton, RewardMachine):
+        reward_machine = automaton
+    else:
+        reward_machine = None
+    
     rollout_sample, indices, importance = rollout_buffer.sample(config.agent_train_batch_size,
                                                                 automaton.num_states,
-                                                                priority_scale=config.rollout_buffer_config.priority_scale)
+                                                                priority_scale=config.rollout_buffer_config.priority_scale,
+                                                                reward_machine=reward_machine)
 
     importance = torch.pow(importance, 1 - config.epsilon)  # So that high-priority states aren't _too_ overrepresented
 
@@ -469,17 +475,6 @@ def train_agent(config: Configuration,
         next_aut_states = reset_done_aut_states(aut_states_after_current, dones, automaton)
 
         # All of these are part of the same episode. next_states and next_aut_states may be part of a different episode
-        if isinstance(automaton, RewardMachine):
-            aut_states = torch.arange(automaton.num_states * config.agent_train_batch_size, device=automaton.device) // config.agent_train_batch_size
-            aps = aps_after_current.repeat(automaton.num_states)
-            
-            current_states = current_states.repeat((automaton.num_states, *[1 for _ in range(current_states.dim()-1)]))
-            actions = actions.repeat(automaton.num_states)
-            states_after_current = states_after_current.repeat((automaton.num_states, *[1 for _ in range(current_states.dim()-1)]))
-            aut_states_after_current = automaton.step_batch(aut_states, aps)
-            rewards = automaton.reward_mat[aut_states, aps]
-            dones = dones.repeat(automaton.num_states)
-        
         buff_helper.add_vec_experiences(current_states=current_states,
                                         actions_after_current=actions,
                                         ext_rewards_after_current=rewards,
@@ -500,12 +495,8 @@ def train_agent(config: Configuration,
 
         if rollout_buffer.num_filled_approx() >= config.rollout_buffer_config.min_size_before_training:
             # Train off-policy
-            if isinstance(automaton, RewardMachine):
-                crm(config=config, optim=optimizer, agent=agent, target_agent=target_agent, rollout_buffer=rollout_buffer,
-                    automaton=automaton, logger=logger, iter_num=i)
-            else:
-                learn(config=config, optim=optimizer, agent=agent, target_agent=target_agent, rollout_buffer=rollout_buffer,
-                      automaton=automaton, logger=logger, iter_num=i)
+            learn(config=config, optim=optimizer, agent=agent, target_agent=target_agent, rollout_buffer=rollout_buffer,
+                  automaton=automaton, logger=logger, iter_num=i)
             
             # Policy distillation
             if config.distill:

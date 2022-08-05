@@ -6,7 +6,6 @@ import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-
 class TraceStep(NamedTuple):
     """A single step in a sequence"""
     state: np.ndarray
@@ -288,7 +287,7 @@ class CircularRolloutBuffer(RolloutBuffer):
             next_aut_states=next_aut_states
         )
 
-    def sample(self, batch_size: int, num_aut_states: Optional[int] = None, priority_scale=0.0) -> Tuple[
+    def sample(self, batch_size: int, num_aut_states: Optional[int] = None, priority_scale=0.0, reward_machine=None) -> Tuple[
         RolloutSample, torch.Tensor, torch.Tensor]:
         """
         Sample from the rollout buffer
@@ -311,7 +310,50 @@ class CircularRolloutBuffer(RolloutBuffer):
         importance = 1 / sample_probs[indices]
         importance = importance / importance.max()
 
-        return self.get_rollout_sample_from_indices(indices), indices, importance
+        rollout_sample = self.get_rollout_sample_from_indices(indices)
+        
+        if reward_machine:
+            aut_states = torch.randint_like(rollout_sample.aut_states, low=0, high=num_aut_states).long()
+            next_aut_states = reward_machine.step_batch(aut_states, rollout_sample.aps).long()
+            rewards = reward_machine.reward_mat[rollout_sample.aut_states, rollout_sample.aps]
+            dones = reward_machine.terminal_states[rollout_sample.next_aut_states].bool()
+            
+            rollout_sample = RolloutSample(
+                states=rollout_sample.states,
+                actions=rollout_sample.actions,
+                rewards=rewards,
+                next_states=rollout_sample.next_states,
+                dones=dones,
+                aut_states=aut_states,
+                aps=rollout_sample.aps,
+                next_aut_states=next_aut_states
+            )
+                
+        
+        return rollout_sample, indices, importance
+    
+    def sample_crm(self, batch_size: int, num_aut_states: Optional[int] = None, priority_scale=0.0) -> Tuple[
+        RolloutSample, torch.Tensor, torch.Tensor]:
+        
+        if num_aut_states is None:
+            valid = self.valid_samples
+        else:
+            good_this_aut_state = self.dfa_states < num_aut_states
+            good_next_aut_state = torch.roll(good_this_aut_state, -1, 0)
+
+            valid = self.valid_samples & good_this_aut_state & good_next_aut_state
+
+        scaled_priorities = torch.pow(self.priorities, priority_scale)
+
+        sample_probs = valid.float() * scaled_priorities
+        sample_probs = sample_probs / sample_probs.sum()
+
+        indices = torch.multinomial(input=sample_probs, num_samples=batch_size, replacement=True)
+
+        importance = 1 / sample_probs[indices]
+        importance = importance / importance.max()
+
+        # return self.get_rollout_sample_from_indices(indices), indices, importance
 
     def iterate_episode_indices(self) -> Iterator[torch.Tensor]:
         """
