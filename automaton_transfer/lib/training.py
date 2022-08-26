@@ -107,7 +107,7 @@ def learn(config: Configuration, optim: Optimizer, agent: Agent, target_agent: T
     
 #     # Target DQN estimates q-values
 #     future_q_values = target_agent.calc_q_values_batch(next_states, next_aut_states)
-#     double_q = future_q_values[range(config.agent_train_batch_size), arg_q_max]
+#     double_q = future_q_values[range(config.agent_train_batch_size * automaton.num_states), arg_q_max]
     
 #     # Calculate targets (bellman equation)
 #     target_q = rewards + (config.gamma * double_q * (~dones).float())
@@ -115,10 +115,11 @@ def learn(config: Configuration, optim: Optimizer, agent: Agent, target_agent: T
 
 #     # What are the q-values that the current agent predicts for the actions it took
 #     q_values = agent.calc_q_values_batch(states, aut_states)
-#     action_q_values = q_values[range(config.agent_train_batch_size), actions]
+#     action_q_values = q_values[range(config.agent_train_batch_size * automaton.num_states), actions]
 
 #     # Sample q values that we get wrong more often
 #     error = action_q_values - target_q
+#     error = torch.stack(torch.split(error, config.agent_train_batch_size)).mean(0)
 #     rollout_buffer.set_priorities(indices=indices, errors=error.detach())
 
 #     # Actually train the neural network
@@ -344,8 +345,8 @@ def distill_agent(config: Configuration,
         current_states = next_states
         current_aut_states = next_aut_states
 
-        logger.add_scalar("experience_generation/extrinsic_reward", float(rewards.float().mean()), global_step=i)
-        logger.add_scalar("experience_generation/intrinsic_reward", float(intr_rewards.float().mean()), global_step=i)
+        # logger.add_scalar("experience_generation/extrinsic_reward", float(rewards.float().mean()), global_step=i)
+        # logger.add_scalar("experience_generation/intrinsic_reward", float(intr_rewards.float().mean()), global_step=i)
 
         # Policy distillation
         distill(config=config, optim=optimizer, teacher=teacher, student=student, rollout_buffer=teacher_buffer,
@@ -438,6 +439,14 @@ def train_agent(config: Configuration,
         # Generate experience
         q_values = agent.calc_q_values_batch(torch.as_tensor(current_states, device=config.device, dtype=torch.float),
                                              current_aut_states)
+        
+        # Generate experiences based on annealed Q-value
+        if isinstance(automaton, TargetAutomaton):
+            target_automaton_q = automaton.target_q_values(rollout_sample.aut_states, rollout_sample.aps, iter_num)
+            target_automaton_q_weights = automaton.target_q_weights(rollout_sample.aut_states, rollout_sample.aps, iter_num)
+
+            q_values = (target_automaton_q * target_automaton_q_weights) + (q_values * (1 - target_automaton_q_weights))
+        
         actions = take_eps_greedy_action_from_q_values(q_values, config.epsilon)
         obs, rewards, dones, infos = env.step(actions)
         obs = torch.as_tensor(obs, device=config.device)
@@ -490,8 +499,8 @@ def train_agent(config: Configuration,
         current_states = next_states
         current_aut_states = next_aut_states
 
-        logger.add_scalar("experience_generation/extrinsic_reward", float(rewards.float().mean()), global_step=i)
-        logger.add_scalar("experience_generation/intrinsic_reward", float(intr_rewards.float().mean()), global_step=i)
+        # logger.add_scalar("experience_generation/extrinsic_reward", float(rewards.float().mean()), global_step=i)
+        # logger.add_scalar("experience_generation/intrinsic_reward", float(intr_rewards.float().mean()), global_step=i)
 
         if rollout_buffer.num_filled_approx() >= config.rollout_buffer_config.min_size_before_training:
             # Train off-policy
