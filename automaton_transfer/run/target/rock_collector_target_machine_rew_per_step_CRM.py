@@ -15,7 +15,8 @@ config = student_config_reward_machine(
     agent_cls=OneHotAutomatonAfterFeatureExtractorAgent,
     device=device,
     aps=rock_collector_aps,
-    ltlf=rock_collector_ltlf
+    ltlf=rock_collector_ltlf,
+    max_training_steps=int(2e5)
 )
 
 if __name__ == '__main__':

@@ -17,7 +17,8 @@ config = student_config_v1(
         "exponent_base": 0.999
     },
     aps=rock_collector_aps,
-    ltlf=rock_collector_ltlf
+    ltlf=rock_collector_ltlf,
+    max_training_steps=int(2e5)
 )
 
 if __name__ == '__main__':

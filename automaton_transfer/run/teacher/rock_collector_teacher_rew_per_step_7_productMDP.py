@@ -9,7 +9,7 @@ from automaton_transfer.run.utils import teacher_config_v1
 device = torch.device("cuda:0")
 config = teacher_config_v1(rock_collector_rew_per_step_env_config_7, "rock_collector_teacher_rew_per_step_7_productMDP",
                            device, agent_cls=OneHotAutomatonAfterFeatureExtractorAgent, aps=rock_collector_aps,
-                           ltlf=rock_collector_ltlf)
+                           ltlf=rock_collector_ltlf, max_training_steps=int(2e5))
 
 if __name__ == '__main__':
     run_training(config)
