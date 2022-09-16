@@ -1,5 +1,6 @@
 import torch
 
+from automaton_transfer.lib.agent.one_hot_automaton_agent import OneHotAutomatonAfterFeatureExtractorAgent
 from automaton_transfer.lib.automaton.target_automaton import ExponentialAnnealTargetAutomaton
 from automaton_transfer.lib.main import run_training
 from automaton_transfer.run.env.rock_collector import rock_collector_rew_per_step_env_config
@@ -16,8 +17,10 @@ config = student_config_v1(
     anneal_target_aut_kwargs={
         "exponent_base": 0.999
     },
+    agent_cls=OneHotAutomatonAfterFeatureExtractorAgent,
     aps=rock_collector_aps,
-    ltlf=rock_collector_ltlf
+    ltlf=rock_collector_ltlf,
+    max_training_steps=int(2e5)
 )
 
 if __name__ == '__main__':
