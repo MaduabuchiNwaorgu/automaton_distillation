@@ -36,6 +36,7 @@ class Configuration(NamedTuple):
     rollout_buffer_config: RolloutBufferConfig
     agent_cls: "Type[ag.Agent]"  # How to construct an agent
     automaton: "aut.Automaton"  # A pre-constructed automaton
+    reward_machine: "aut.RewardMachine" # A pre-constructed reward machine
     epsilon: float  # For epsilon-greedy action selection
     agent_train_batch_size: int  # When training the agent
     target_agent_update_every_steps: int  # Max number of steps before updating the DDQN target

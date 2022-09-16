@@ -43,6 +43,7 @@ def teacher_config_v1(env_config: EnvConfig, run_name: str, device: torch.device
         ),
         agent_cls=agent_cls,
         automaton=automaton,
+        reward_machine=None,
         epsilon=0.1,
         agent_train_batch_size=32,
         target_agent_update_every_steps=1000,
@@ -63,11 +64,17 @@ def student_config_v1(env_config: EnvConfig, teacher_run_name: str, student_run_
                       device: torch.device, anneal_target_aut_class: Type[AnnealTargetAutomaton],
                       anneal_target_aut_kwargs, new_gamma: float = 0.99,
                       agent_cls=DuelingQNetworkAgent, max_training_steps=int(1e6),
-                      no_done_on_out_of_time=False, aps: List = dummy_aps, ltlf: str = dummy_ltlf):
+                      no_done_on_out_of_time=False, aps: List = dummy_aps, ltlf: str = dummy_ltlf,
+                      reward_machine: bool = False):
     teacher_config = teacher_config_v1(env_config, teacher_run_name, device, agent_cls, aps=aps, ltlf=ltlf)
     with open(f"automaton_q/{teacher_run_name}.json", "r") as f:
         teacher_aut_info = json.load(f)
-
+    
+    if reward_machine:
+        reward_machine = RewardMachine.from_json(teacher_config, device),
+    else:
+        reward_machine = None
+    
     student_config = teacher_config._replace(
         env_config=env_config,
         automaton=anneal_target_aut_class(
@@ -77,6 +84,7 @@ def student_config_v1(env_config: EnvConfig, teacher_run_name: str, student_run_
             min_source_q_count=1,
             **anneal_target_aut_kwargs
         ),
+        reward_machine=reward_machine,
         run_name=student_run_name,
         gamma=new_gamma,
         distill=False,
@@ -89,14 +97,18 @@ def student_config_v1(env_config: EnvConfig, teacher_run_name: str, student_run_
 def student_config_reward_machine(env_config: EnvConfig, teacher_run_name: str, student_run_name: str,
                       device: torch.device, new_gamma: float = 0.99, agent_cls=DuelingQNetworkAgent,
                       max_training_steps=int(1e6), no_done_on_out_of_time=False, aps: List = dummy_aps,
-                      ltlf: str = dummy_ltlf):
+                      ltlf: str = dummy_ltlf, automaton: LTLAutomaton = None):
     teacher_config = teacher_config_v1(env_config, teacher_run_name, device, agent_cls, aps=aps, ltlf=ltlf)
+    
+    if automaton != None:
+        teacher_config = teacher_config._replace(automaton=automaton)
     
     reward_machine = RewardMachine.from_json(teacher_config, device)
     
     student_config = teacher_config._replace(
         env_config=env_config,
         automaton=reward_machine,
+        reward_machine=reward_machine,
         run_name=student_run_name,
         gamma=new_gamma,
         distill=False,

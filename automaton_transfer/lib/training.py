@@ -22,16 +22,16 @@ from automaton_transfer.lib.updater import Updater
 
 
 def learn(config: Configuration, optim: Optimizer, agent: Agent, target_agent: TargetAgent,
-          rollout_buffer: RolloutBuffer, automaton: Automaton, logger: SummaryWriter, iter_num: int):
+          rollout_buffer: RolloutBuffer, automaton: Automaton, logger: SummaryWriter, iter_num: int, reward_machine: RewardMachine = None):
     """
 	Perform double Q-network gradient descent on a batch of samples from the rollout buffer (from deepsynth)
 	"""
     optim.zero_grad()
     
-    if isinstance(automaton, RewardMachine):
-        reward_machine = automaton
-    else:
-        reward_machine = None
+    # if isinstance(automaton, RewardMachine):
+    #     reward_machine = automaton
+    # else:
+    #     reward_machine = rm
     
     rollout_sample, indices, importance = rollout_buffer.sample(config.agent_train_batch_size,
                                                                 automaton.num_states,
@@ -345,8 +345,8 @@ def distill_agent(config: Configuration,
         current_states = next_states
         current_aut_states = next_aut_states
 
-        # logger.add_scalar("experience_generation/extrinsic_reward", float(rewards.float().mean()), global_step=i)
-        # logger.add_scalar("experience_generation/intrinsic_reward", float(intr_rewards.float().mean()), global_step=i)
+        logger.add_scalar("experience_generation/extrinsic_reward", float(rewards.float().mean()), global_step=i)
+        logger.add_scalar("experience_generation/intrinsic_reward", float(intr_rewards.float().mean()), global_step=i)
 
         # Policy distillation
         distill(config=config, optim=optimizer, teacher=teacher, student=student, rollout_buffer=teacher_buffer,
@@ -362,7 +362,8 @@ def train_agent(config: Configuration,
                 ap_extractor: APExtractor,
                 rollout_buffer: RolloutBuffer,
                 logger: SummaryWriter,
-                start_iter_num: int) -> Agent:
+                start_iter_num: int,
+                reward_machine: RewardMachine = None) -> Agent:
     """
 	Train the agent for an entire generation
 	:param agent: The agent to train
@@ -370,6 +371,7 @@ def train_agent(config: Configuration,
 	:param automaton: The automaton to use during training. The states and transitions of the input will be updated
 	:param ap_extractor: The weights of this will not be updated
 	:param rollout_buffer: Assumed to already be labeled with the correct automaton states and intrinsic rewards, if any states are present
+    :param reward_machine: The reward machine used for CRM, if any
 	:return: The trained agent
 	"""
     # TODO clarify ndarrays vs Tensors & devices
@@ -439,14 +441,6 @@ def train_agent(config: Configuration,
         # Generate experience
         q_values = agent.calc_q_values_batch(torch.as_tensor(current_states, device=config.device, dtype=torch.float),
                                              current_aut_states)
-        
-        # Generate experiences based on annealed Q-value
-        if isinstance(automaton, TargetAutomaton):
-            target_automaton_q = automaton.target_q_values(rollout_sample.aut_states, rollout_sample.aps, iter_num)
-            target_automaton_q_weights = automaton.target_q_weights(rollout_sample.aut_states, rollout_sample.aps, iter_num)
-
-            q_values = (target_automaton_q * target_automaton_q_weights) + (q_values * (1 - target_automaton_q_weights))
-        
         actions = take_eps_greedy_action_from_q_values(q_values, config.epsilon)
         obs, rewards, dones, infos = env.step(actions)
         obs = torch.as_tensor(obs, device=config.device)
@@ -505,7 +499,7 @@ def train_agent(config: Configuration,
         if rollout_buffer.num_filled_approx() >= config.rollout_buffer_config.min_size_before_training:
             # Train off-policy
             learn(config=config, optim=optimizer, agent=agent, target_agent=target_agent, rollout_buffer=rollout_buffer,
-                  automaton=automaton, logger=logger, iter_num=i)
+                  automaton=automaton, logger=logger, iter_num=i, reward_machine=reward_machine)
             
             # Policy distillation
             if config.distill:
