@@ -24,15 +24,8 @@ obtain_diamond_aps = [
     AP(name='diamond_layers', func=LayerAP('diamond'))
 ]
 
-obtain_diamond_aps_medium = [
-    AP(name="craftable", func=AnyCraftableAP()),
-    AP(name="new_layer", func=NewLayerAP()),
-    AP(name="has_viewable_materials", func=HasViewableMaterials())
-]
 
-obtain_diamond_ltlf = '(F craftable) & ((F new_layer) U diamond_layers) & ' \
+obtain_diamond_ltlf = 'G(F craftable) & ((F new_layer) U diamond_layers) & ' \
                       '((woodpickaxe & stone_layers) -> F stone) & ((stonepickaxe & iron_layers) -> F iron) &' \
                       ' ((ironpickaxe & diamond_layers) -> F diamond)'
 
-obtain_diamond_ltlf_medium = '((F craftable) U ironpickaxe) & ((F new_layer) U diamond_layers) ' \
-                            '& (F has_viewable_materials)'

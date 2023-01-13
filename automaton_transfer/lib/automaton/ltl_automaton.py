@@ -2,22 +2,18 @@ import json
 from json import JSONDecodeError
 from os.path import exists
 from typing import List, Dict
-import platform
+from sys import platform
 
 import numpy as np
 import torch
 import re
-# import spot
 from flloat.parser.ltlf import LTLfParser
-from ltlf2dfa.parser.ltlf import LTLfParser as ltlf2dfaParser
 from pythomata.impl.symbolic import SymbolicDFA
 
 from automaton_transfer.lib.automaton.automaton import Automaton
 
 # It can be slow to compile LTLf into an automaton, so we keep the results of this on disk
 AUT_CACHE_NAME = "aut_cache.json"
-
-# spot.setup()
 
 
 def get_aut_json_key(ltlf: str, ap_names: List[str]):
@@ -111,17 +107,12 @@ class LTLAutomaton(Automaton):
             return cached_automaton
 
         # Parse to DFA
-        if platform.system() == 'Linux':
-            # parser = ltlf2dfaParser()
-            # parsed = parser(ltlf)
-            # mona_dfa = parsed.to_dfa()
-            # dot_dfa = spot.translate(ltlf, 'deterministic').to_str('dot')
-            # dfa: SymbolicDFA = from_dot_spot(dot_dfa)
-            ltl_parser = LTLfParser()
-            parsed_formula = ltl_parser(ltlf)
-            dfa: SymbolicDFA = parsed_formula.to_automaton().determinize()
-            pass
-        else:
+        if platform == "linux":
+            import spot
+            spot.setup()
+            dot_dfa = spot.translate(ltlf, 'deterministic').to_str('dot')
+            dfa: SymbolicDFA = from_dot_spot(dot_dfa)
+        elif platform == 'win32':
             ltl_parser = LTLfParser()
             parsed_formula = ltl_parser(ltlf)
             dfa: SymbolicDFA = parsed_formula.to_automaton().determinize()
@@ -153,61 +144,50 @@ class LTLAutomaton(Automaton):
         return LTLAutomaton(adj_matrix, dfa.initial_state, device)
 
 
-def from_dot(dfa):
-    new_automaton = SymbolicDFA()
-    states = set()
-    outgoing = {}
-    lines = dfa.split('\n')
-    start = False
-    for line in lines:
-        if line[0] == '}':
-            break
-        if start is False:
-            if 'init ->' in line:
-                new_automaton.create_state()
-                states.add(int(line[-2]) - 1)
-                outgoing[int(line[-2]) - 1] = 0
-                start = True
-        else:
-            temp = line[:line.index('[')].split(' ')
-            initial = int(temp[1]) - 1
-            receive = int(temp[3]) - 1
-            label = line[line.index('"') + 1:-3]
-            if initial not in states:
-                states.add(initial)
-                outgoing[initial] = 0
-                new_automaton.create_state()
-            if receive not in states:
-                states.add(receive)
-                new_automaton.create_state()
-                outgoing[receive] = 0
-            outgoing[initial] += 1
-            new_automaton.add_transition((initial, label, receive))
-    for key in outgoing.keys():
-        if outgoing[key] == 1:
-            new_automaton.set_accepting_state(key, True)
-    new_automaton.set_initial_state(0)
-    return new_automaton.determinize()
-
-
 def from_dot_spot(dfa):
+    """
+    What the dot representation from spot looks like
+    ['digraph "" {',
+     '  rankdir=LR',
+     '  label=<[Büchi]>',
+     '  labelloc="t"',
+     '  node [shape="circle"]',
+     '  node [style="filled", fillcolor="#ffffaa"]',
+     '  fontname="Lato"',
+     '  node [fontname="Lato"]',
+     '  edge [fontname="Lato"]',
+     '  size="10.13,5" edge[arrowhead=vee, arrowsize=.7]',
+     '  I [label="", style=invis, width=0]',
+     '  I -> 1',
+     '  0 [label=<0>, peripheries=2]',
+     '  0 -> 0 [label=<1>]',
+     '  1 [label=<1>]',
+     '  1 -> 0 [label=<b>]',
+     '  1 -> 1 [label=<a &amp; !b>]',
+     '}',
+     '']
+    """
     new_automaton = SymbolicDFA()
     initial_state = -1
     current_state = 0
     states = {0}
     lines = dfa.split('\n')
     for line in lines:
-        if re.match('\s+I -> \d+', line):
-            initial_state = int(line.split(' ')[-1])
         if line == '}':
             break
-        if re.match('\s+\d+ \[label=.+\]', line):
+        # Gets the initial state
+        if re.match(r'\s+I -> \d+', line):
+            initial_state = int(line.split(' ')[-1])
+
+        # Checks if it's initializing a new state
+        if re.match(r'\s+\d+ \[label=.+\]', line):
             if int(line[2]) in states:
                 continue
             new_automaton.create_state()
             current_state += 1
             states.add(current_state)
-        elif re.match('\s+\d+ -> \d+ \[label=.+\]', line):
+        elif re.match(r'\s+\d+ -> \d+ \[label=.+\]', line):
+            # Gets the receiving state
             temp = line[:line.index('[')].split(' ')
             initial = int(temp[2])
             receive = int(temp[4])
@@ -215,11 +195,16 @@ def from_dot_spot(dfa):
                 new_automaton.create_state()
                 current_state += 1
                 states.add(current_state)
-            label = line[line.index('<') + 1:-2]
+
+            # Gets the edge label
+            temp = line[line.index('[') + 1:]
+            label = re.match('label=<.+?[<>]', temp)
+            label = label[0][7:-1]
             if 'amp;' in label:
                 label = label.replace('amp;', '')
             if '!' in label:
                 label = label.replace('!', '~')
             new_automaton.add_transition((initial, label, receive))
+
     new_automaton.set_initial_state(initial_state)
     return new_automaton
