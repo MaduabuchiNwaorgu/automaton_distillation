@@ -1,0 +1,3 @@
+[submodule "safety-gym"]
+	path = safety-gym
+	url = https://github.com/surajsingireddy/safety-gym

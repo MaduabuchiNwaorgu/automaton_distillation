@@ -6,11 +6,6 @@ import copy
 
 from ZoneEnvBase import ZoneEnvBase, Zone
 
-# from genv.safety.safety_gym.envs.engine import *
-import os
-import sys
-sys.path.insert(1, os.path.join(os.getcwd(), "safety-gym"))
-
 key = Zone.Yellow
 sword = Zone.Blue
 shield = Zone.Green
@@ -47,6 +42,7 @@ class DungeonQuestEnv(ZoneEnvBase):
             vis = z == Zone.White
             obs[f"zones_lidar_{i}"] = np.concatenate([[vis], pos])
 
+    @property
     def reward_goal(self):
         return (self.num_steps - self.steps) * self.time_saved_reward
 
@@ -68,6 +64,7 @@ class DungeonQuestEnv(ZoneEnvBase):
                 if dist <= self.zones_size:
                     self.zones[i] = visited
                     body_id = self.sim.model.geom_name2id(f"zone{i}")
+                    self.sim.model.geom_rgba[body_id] = self._rgb[visited]
                     self.new_zone_reached = True
 
                     break
@@ -90,4 +87,4 @@ config_point = {
     'num_steps': 2000
 }
 
-register(id="PointDQ-v0", entry_point="genv.DungeonQuestEnv:DungeonQuestEnv", kwargs={"config": config_point})
+register(id="PointDQ-v0", entry_point="DungeonQuestEnv:DungeonQuestEnv", kwargs={"config": config_point})
