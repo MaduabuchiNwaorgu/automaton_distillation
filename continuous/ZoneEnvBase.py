@@ -2,7 +2,6 @@ import numpy as np
 import enum
 import gym
 
-# from genv.safety.safety_gym.envs.engine import *
 import os
 import sys
 sys.path.insert(1, os.path.join(os.getcwd(), "safety-gym"))
@@ -86,6 +85,7 @@ class ZoneEnvBase(Engine):
             Zone.White: [1, 1, 1, 0.25]
         }
         self.zone_rgbs = np.array([self._rgb[haz] for haz in self.zones])
+        self.inventory = []
 
         parent_config = {
             'robot_base': 'xmls/car.xml',

@@ -6,13 +6,12 @@ import copy
 
 from ZoneEnvBase import ZoneEnvBase, Zone
 
-key = Zone.Yellow
-sword = Zone.Blue
-shield = Zone.Green
-dragon = Zone.Red
-visited = Zone.JetBlack
+wood = Zone.Green
+chopped = Zone.JetBlack
+factory = Zone.Red
+home = Zone.Blue
 
-class DungeonQuestEnv(ZoneEnvBase):
+class BlindCraftsmanEnv(ZoneEnvBase):
     def __init__(self, config):
         self.new_zone_reached = None
         self.zones_dirty = None
@@ -25,8 +24,8 @@ class DungeonQuestEnv(ZoneEnvBase):
 
         config.update({"continue_goal": False})
 
-        self.zone_types = [key, sword, shield, dragon, visited]
-        self.zones = [key, sword, shield, dragon]
+        self.zone_types = [wood, chopped, factory, home]
+        self.zones = [wood, wood, wood, factory, home]
         self.high_only_keys = ["remaining"] + [f"zones_lidar_{i}" for i in range(len(self.zones))]
 
         super().__init__(zones=self.zones, config=config)
@@ -62,39 +61,35 @@ class DungeonQuestEnv(ZoneEnvBase):
             if self.zones[i] != visited:
                 dist = self.dist_xy(pos)
                 if dist <= self.zones_size:
-                    if self.zones[i] == key:
-                        self.inventory.append("key")
+                    if self.zones[i] == wood:
+                        self.inventory.append("wood")
+                        
+                        self.zones[i] = chopped
                     
-                    elif self.zones[i] == sword:
-                        if "key" in self.inventory:
-                            self.inventory.append("sword")
+                        body_id = self.sim.model.geom_name2id(f"zone{i}")
+                        self.sim.model.geom_rgba[body_id] = self._rgb[chopped]
+                        self.new_zone_reached = True
+                    
+                    elif self.zones[i] == factory:
+                        if "wood" in self.inventory:
+                            self.inventory.append("tool")
+                            self.inventory.remove("wood")
                         else:
                             continue
                     
-                    elif self.zones[i] == shield:
-                        self.inventory.append("shield")
-                    
-                    elif self.zones[i] == dragon:
-                        if "sword" in self.inventory and "shield" in self.inventory:
-                            self.inventory.append("scale")
+                    elif self.zones[i] == home:
+                        if sum(1 for item in self.inventory if item == "tool") >= 3:
+                            self.inventory.append("at_home")
                         else:
                             continue
-                    
-                    self.zones[i] = visited
-                    
-                    body_id = self.sim.model.geom_name2id(f"zone{i}")
-                    self.sim.model.geom_rgba[body_id] = self._rgb[visited]
-                    self.new_zone_reached = True
-
-                    break
 
         self.zones_dirty = False
 
     def goal_met(self):
-        return "scale" in self.inventory
+        return "at_home" in self.inventory
 
     def reset(self):
-        self.zones = [key, sword, shield, dragon]
+        self.zones = [wood, wood, wood, factory, home]
 
         return super().reset()
 
@@ -106,4 +101,4 @@ config_point = {
     'num_steps': 2000
 }
 
-register(id="PointDQ-v0", entry_point="DungeonQuestEnv:DungeonQuestEnv", kwargs={"config": config_point})
+register(id="PointBC-v0", entry_point="BlidnCraftsmanEnv:BlindCraftsmanEnv", kwargs={"config": config_point})
