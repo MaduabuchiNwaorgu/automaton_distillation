@@ -12,7 +12,7 @@ conda activate autd
 # 2. Verify installation
 python -c "import src.control_env_debug; print('OK')"
 
-# 3. Run a quick smoke test (all envs, 500 steps)
+# 3. Run a quick test (all envs, 500 steps)
 python -m src.control_env_debug.run_all_benchmarks \
     --total_steps 500 --n_envs 1 --seeds 0
 
@@ -20,48 +20,9 @@ python -m src.control_env_debug.run_all_benchmarks \
 ./run_patrol.sh 100000 "0 1 2" 4 bench
 ```
 
-## Repository Structure
-
-```
-TMLR/
-├── src/control_env_debug/          # Main codebase
-│   ├── automaton/                  # LTLf automaton + wrapper
-│   │   ├── automaton.py            #   DFA from LTLf formula (flloat/pythomata)
-│   │   ├── automaton_utils.py      #   Transition helpers
-│   │   └── automaton_wrapper.py    #   gym.Wrapper: RM reward + AP tracking
-│   ├── envs/                       # Environment implementations
-│   │   ├── mujoco/half_cheetah_env.py   # HalfCheetah patrol (configurable thresholds)
-│   │   ├── flatworld/flatworld_env.py   # 2-D navigation with circles + walls
-│   │   └── zones/zones_env.py           # Safety-Gymnasium zone navigation
-│   ├── rl_agents/                  # Agent implementations
-│   │   ├── TD3/td3.py              #   TD3 with RM-conditioned actor/critic + CRM
-│   │   └── utils/replay_buffer.py  #   Experience replay with RM state tracking
-│   ├── train_vectorized_td3.py     # Main training loop (vectorized)
-│   ├── train_env.py                # Environment factory
-│   ├── train_agent.py              # Agent factory
-│   ├── vec_env.py                  # Lightweight vectorized env (no SB3 dependency)
-│   ├── construct_q_automaton.py    # Post-training Q-automaton extraction
-│   ├── run_all_benchmarks.py       # Full benchmark runner
-│   ├── aggregate_results.py        # Results aggregation
-│   ├── plotting.py                 # Result visualisation
-│   └── plot_mean_std.py            # Mean ± std plots across seeds
-├── discrete/                       # Discrete (DQN) version of the pipeline
-├── automaton_q/                    # Cached Q-automata (generated at runtime)
-├── docs/                           # Paper PDF
-├── run_patrol.sh                   # Per-env benchmark scripts
-├── run_flatworld_patrol.sh
-├── run_flatworld_sequence.sh
-├── run_zones_patrol.sh
-├── run_zones_sequence.sh
-├── requirements.txt
-└── environment.yml
-```
-
 ## Environments
 
-All environments are wrapped with an **LTLf automaton** that tracks task progress
-through a reward machine (RM). The teacher trains on an easier source configuration;
-the student trains on a harder target configuration.
+All environments are wrapped with an **LTLf automaton** that tracks task progress through a automaton. The teacher trains on an easier source configuration; the student trains on a harder target configuration.
 
 | Environment | Source (Teacher) | Target (Student) | LTLf Formula |
 |---|---|---|---|
@@ -138,7 +99,6 @@ All runs save to `logs/<run_name>/`:
 - `td3_model_{actor,critic_1,critic_2}.pth` — trained network weights
 - `episode_returns.npy`, `episode_lengths.npy` — per-episode metrics
 - `vecnormalize.pkl` — observation normalisation statistics
-- `replay_buffer.pkl.gz` — full replay buffer
 - `episodes.csv` — step-level diagnostics
 
 Q-automata are saved to `automaton_q/<run_name>.json`.
